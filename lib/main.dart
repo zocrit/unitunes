@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/search_models.dart';
 import 'services/spotify_service.dart';
 import 'services/youtube_music_service.dart';
 import 'services/tidal_service.dart';
+import 'settings_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -40,6 +42,7 @@ class _HomePageState extends State<HomePage> {
   String _errorMsg = '';
   bool _isConverting = false;
   String _shareTargetType = 'youtube_music';
+  String _defaultAction = 'ask';
 
   late StreamSubscription _intentSub;
   StreamSubscription? _targetEventSub;
@@ -97,6 +100,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initServices() async {
+    final prefs = await SharedPreferences.getInstance();
+    _defaultAction = prefs.getString('default_action') ?? 'ask';
+
     const clientId = String.fromEnvironment('SPOTIFY_CLIENT_ID', defaultValue: '');
     const clientSecret = String.fromEnvironment('SPOTIFY_CLIENT_SECRET', defaultValue: '');
 
@@ -158,20 +164,96 @@ class _HomePageState extends State<HomePage> {
         searchResult = await _ytService.search(params);
       }
 
-      setState(() {
-        if (searchResult.results.isNotEmpty) {
-          _result = searchResult.results.first;
-        } else {
+      if (searchResult.results.isNotEmpty) {
+        setState(() => _isConverting = false);
+        _handleResult(searchResult.results.first);
+      } else {
+        setState(() {
           _errorMsg = 'No results found';
-        }
-        _isConverting = false;
-      });
+          _isConverting = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMsg = 'Conversion failed';
         _isConverting = false;
       });
     }
+  }
+
+  void _handleResult(SearchResultItem item) {
+    switch (_defaultAction) {
+      case 'copy':
+        _copyAndPop(item.url);
+      case 'open':
+        _openAndPop(item.url);
+      case 'show':
+        setState(() => _result = item);
+      default: // 'ask'
+        setState(() => _result = item);
+        _showActionSheet(item);
+    }
+  }
+
+  void _showActionSheet(SearchResultItem item) {
+    final targetLabel = _shareTargetType == 'tidal' ? 'Tidal' : 'YouTube Music';
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                item.title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copy link'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _copyAndPop(item.url);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text('Open in $targetLabel'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _openAndPop(item.url);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('Show details'),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _result = item);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _copyAndPop(String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link copied to clipboard')),
+      );
+    }
+    SystemNavigator.pop();
+  }
+
+  Future<void> _openAndPop(String url) async {
+    await _openLink(url);
+    SystemNavigator.pop();
   }
 
   Future<void> _openLink(String url) async {
@@ -202,6 +284,22 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('UniTunes'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () async {
+              final result = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SettingsPage(defaultAction: _defaultAction),
+                ),
+              );
+              if (result != null) {
+                setState(() => _defaultAction = result);
+              }
+            },
+          ),
+        ],
       ),
       body: Center(
         child: _sharedText.isEmpty
