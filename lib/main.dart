@@ -4,11 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'models/history_entry.dart';
 import 'models/search_models.dart';
+import 'services/history_service.dart';
 import 'services/music_service.dart';
 import 'services/spotify_service.dart';
 import 'services/youtube_music_service.dart';
 import 'services/tidal_service.dart';
+import 'history_page.dart';
 import 'settings_page.dart';
 
 void main() {
@@ -48,6 +51,7 @@ class _HomePageState extends State<HomePage> {
   late StreamSubscription _intentSub;
   StreamSubscription? _targetEventSub;
   List<MusicService> _services = [];
+  HistoryService? _historyService;
 
   final _servicesReady = Completer<void>();
   String? _pendingLink;
@@ -127,6 +131,7 @@ class _HomePageState extends State<HomePage> {
     ];
 
     _servicesReady.complete();
+    setState(() => _historyService = HistoryService(prefs));
 
     if (_pendingLink != null) {
       final link = _pendingLink!;
@@ -176,8 +181,18 @@ class _HomePageState extends State<HomePage> {
       final searchResult = await target.search(params);
 
       if (searchResult.results.isNotEmpty) {
+        final item = searchResult.results.first;
+        await _historyService?.add(HistoryEntry(
+          title: item.title,
+          sourceUrl: text,
+          targetUrl: item.url,
+          sourceId: source.id,
+          targetId: target.id,
+          type: params.type,
+          timestamp: DateTime.now(),
+        ));
         setState(() => _isConverting = false);
-        _handleResult(searchResult.results.first);
+        _handleResult(item);
       } else {
         setState(() {
           _errorMsg = 'No results found';
@@ -296,6 +311,20 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('UniTunes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: _historyService == null ? null : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HistoryPage(
+                    historyService: _historyService!,
+                    services: _services,
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
