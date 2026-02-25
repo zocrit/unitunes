@@ -1,8 +1,8 @@
 # UniTunes
 
-Android app that converts Spotify links to YouTube Music or Tidal.
+Android app that converts music links between Spotify, YouTube Music, and Tidal.
 
-Share a Spotify link to the app, pick which service you want, and get a converted link back.
+Share a link from any of the three services and get a converted link for whichever platform you want.
 
 ## Requirements
 
@@ -11,12 +11,7 @@ Share a Spotify link to the app, pick which service you want, and get a converte
 
 ## Running
 
-```bash
-flutter pub get
-flutter run
-```
-
-The app works out of the box by scraping metadata from Spotify pages. If you want to use the Spotify API as a fallback, pass credentials:
+The app works out of the box by scraping metadata from music pages. If you want to use the Spotify API as a fallback for parsing and searching, pass credentials:
 
 ```bash
 flutter run \
@@ -26,13 +21,13 @@ flutter run \
 
 ## How it works
 
-When you share a Spotify link (track, album, or artist) to UniTunes, Android shows two share targets: "YouTube Music" and "Tidal". The app pulls track/artist/album info from the Spotify page, searches the target service, and gives you a direct link.
+When you share a music link to UniTunes, Android shows three share targets (one per platform). The app figures out which service the link is from, scrapes track/artist/album info from the page, and searches the target service.
 
-YouTube Music search goes through the InnerTube API. Tidal just builds a search URL since there's no public API worth dealing with.
+Spotify links are parsed from JSON-LD metadata on the page, or via the Spotify API if credentials are configured. YouTube Music and Tidal links use OpenGraph meta tags. On the search side, YouTube Music goes through the InnerTube API, Spotify uses its API when available, and Tidal just builds a search URL since there's no public API worth dealing with.
 
 ## Platform support
 
-Android only for now. The Flutter project has the usual iOS/macOS/Linux/Windows scaffolding but none of the native share intent handling is wired up for those platforms.
+Android only for now, other platforms support will be coming later.
 
 ## License
 
