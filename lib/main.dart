@@ -501,41 +501,57 @@ class _HomePageState extends State<HomePage> {
                                   itemBuilder: (context, index) {
                                     final entry = _recentEntries[index];
                                     final targetName = _services.displayNameFor(entry.targetId);
-                                    return ListTile(
-                                      leading: entry.imageUrl != null
-                                          ? ClipRRect(
-                                              borderRadius: BorderRadius.circular(6),
-                                              child: Image.network(
-                                                entry.imageUrl!,
+                                    return InkWell(
+                                      onTap: () => showEntryActionSheet(context, entry, _services),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        child: IntrinsicHeight(
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              SizedBox(
                                                 width: 40,
-                                                height: 40,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => const SizedBox(
-                                                  width: 40,
-                                                  height: 40,
-                                                  child: Icon(Icons.music_note),
+                                                child: entry.imageUrl != null
+                                                    ? ClipRRect(
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        child: Image.network(
+                                                          entry.imageUrl!,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder: (_, __, ___) => const Center(
+                                                            child: Icon(Icons.music_note),
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : const Center(child: Icon(Icons.music_note)),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    SingleChildScrollView(
+                                                      scrollDirection: Axis.horizontal,
+                                                      child: Text(
+                                                        entry.artist != null
+                                                            ? '${entry.title} - ${entry.artist}'
+                                                            : entry.title,
+                                                        maxLines: 1,
+                                                        style: Theme.of(context).textTheme.titleMedium,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '$targetName \u00b7 ${entry.relativeTime}',
+                                                      style: Theme.of(context).textTheme.bodyMedium,
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                            )
-                                          : const SizedBox(
-                                              width: 40,
-                                              height: 40,
-                                              child: Icon(Icons.music_note),
-                                            ),
-                                      title: SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: Text(
-                                          entry.artist != null
-                                              ? '${entry.title} - ${entry.artist}'
-                                              : entry.title,
-                                          maxLines: 1,
+                                              const Center(child: Icon(Icons.chevron_right)),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                      subtitle: Text(
-                                        '$targetName \u00b7 ${entry.relativeTime}',
-                                      ),
-                                      trailing: const Icon(Icons.chevron_right),
-                                      onTap: () => showEntryActionSheet(context, entry, _services),
                                     );
                                   },
                                 ),
