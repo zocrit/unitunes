@@ -9,6 +9,7 @@ class HistoryEntry {
   final ContentType type;
   final DateTime timestamp;
   final String? imageUrl;
+  final String? artist;
 
   HistoryEntry({
     required this.title,
@@ -19,6 +20,7 @@ class HistoryEntry {
     required this.type,
     required this.timestamp,
     this.imageUrl,
+    this.artist,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +32,7 @@ class HistoryEntry {
         'type': type.name,
         'timestamp': timestamp.toIso8601String(),
         if (imageUrl != null) 'imageUrl': imageUrl,
+        if (artist != null) 'artist': artist,
       };
 
   String get relativeTime {
@@ -50,5 +53,6 @@ class HistoryEntry {
         type: ContentType.values.byName(json['type'] as String),
         timestamp: DateTime.parse(json['timestamp'] as String),
         imageUrl: json['imageUrl'] as String?,
+        artist: json['artist'] as String?,
       );
 }

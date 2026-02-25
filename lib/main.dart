@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/history_entry.dart';
-import 'models/search_models.dart';
 import 'services/history_service.dart';
 import 'services/music_service.dart';
 import 'services/spotify_service.dart';
@@ -100,7 +99,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String _sharedText = '';
-  SearchResultItem? _result;
+  HistoryEntry? _lastEntry;
   String _errorMsg = '';
   bool _isConverting = false;
   String _shareTargetType = 'youtube_music';
@@ -212,7 +211,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    setState(() { _result = null; _errorMsg = ''; _imageUrl = null; });
+    setState(() { _lastEntry = null; _errorMsg = ''; _imageUrl = null; });
 
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
@@ -237,7 +236,7 @@ class _HomePageState extends State<HomePage> {
         .firstOrNull;
     if (cached != null) {
       setState(() => _imageUrl = cached.imageUrl);
-      _handleResult(SearchResultItem(url: cached.targetUrl, title: cached.title));
+      _handleResult(cached);
       return;
     }
 
@@ -259,7 +258,7 @@ class _HomePageState extends State<HomePage> {
 
       if (searchResult.results.isNotEmpty) {
         final item = searchResult.results.first;
-        await _historyService?.add(HistoryEntry(
+        final entry = HistoryEntry(
           title: item.title,
           sourceUrl: text,
           targetUrl: item.url,
@@ -268,9 +267,11 @@ class _HomePageState extends State<HomePage> {
           type: params.type,
           timestamp: DateTime.now(),
           imageUrl: params.imageUrl,
-        ));
+          artist: params.artist,
+        );
+        await _historyService?.add(entry);
         setState(() => _isConverting = false);
-        _handleResult(item);
+        _handleResult(entry);
       } else {
         setState(() {
           _errorMsg = 'No results found';
@@ -285,21 +286,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _handleResult(SearchResultItem item) {
+  void _handleResult(HistoryEntry entry) {
     switch (_defaultAction) {
       case 'copy':
-        _copyAndPop(item.url);
+        _copyAndPop(entry.targetUrl);
       case 'open':
-        _openAndPop(item.url);
+        _openAndPop(entry.targetUrl);
       case 'show':
-        setState(() => _result = item);
+        setState(() => _lastEntry = entry);
       default: // 'ask'
-        setState(() => _result = item);
-        _showActionSheet(item);
+        setState(() => _lastEntry = entry);
+        _showActionSheet(entry);
     }
   }
 
-  void _showActionSheet(SearchResultItem item) {
+  void _showActionSheet(HistoryEntry entry) {
     final targetLabel = _target?.displayName ?? 'target';
     showModalBottomSheet(
       context: context,
@@ -310,7 +311,7 @@ class _HomePageState extends State<HomePage> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                item.title,
+                entry.title,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -320,7 +321,7 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Copy link'),
               onTap: () {
                 Navigator.pop(ctx);
-                _copyAndPop(item.url);
+                _copyAndPop(entry.targetUrl);
               },
             ),
             ListTile(
@@ -328,7 +329,7 @@ class _HomePageState extends State<HomePage> {
               title: Text('Open in $targetLabel'),
               onTap: () {
                 Navigator.pop(ctx);
-                _openAndPop(item.url);
+                _openAndPop(entry.targetUrl);
               },
             ),
             ListTile(
@@ -336,7 +337,7 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Show details'),
               onTap: () {
                 Navigator.pop(ctx);
-                setState(() => _result = item);
+                setState(() => _lastEntry = entry);
               },
             ),
           ],
@@ -397,7 +398,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final targetLabel = _target?.displayName ?? 'target';
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -500,16 +500,39 @@ class _HomePageState extends State<HomePage> {
                                   itemCount: itemCount,
                                   itemBuilder: (context, index) {
                                     final entry = _recentEntries[index];
-                                    final sourceName = _services.displayNameFor(entry.sourceId);
                                     final targetName = _services.displayNameFor(entry.targetId);
                                     return ListTile(
-                                      title: Text(
-                                        entry.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      leading: entry.imageUrl != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Image.network(
+                                                entry.imageUrl!,
+                                                width: 40,
+                                                height: 40,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => const SizedBox(
+                                                  width: 40,
+                                                  height: 40,
+                                                  child: Icon(Icons.music_note),
+                                                ),
+                                              ),
+                                            )
+                                          : const SizedBox(
+                                              width: 40,
+                                              height: 40,
+                                              child: Icon(Icons.music_note),
+                                            ),
+                                      title: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Text(
+                                          entry.artist != null
+                                              ? '${entry.title} - ${entry.artist}'
+                                              : entry.title,
+                                          maxLines: 1,
+                                        ),
                                       ),
                                       subtitle: Text(
-                                        '$sourceName \u2192 $targetName \u00b7 ${entry.relativeTime}',
+                                        '$targetName \u00b7 ${entry.relativeTime}',
                                       ),
                                       trailing: const Icon(Icons.chevron_right),
                                       onTap: () => showEntryActionSheet(context, entry, _services),
@@ -525,78 +548,40 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             )
-          : Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_imageUrl != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            _imageUrl!,
-                            width: 200,
-                            height: 200,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                          ),
-                        ),
-                      ),
-                    if (_isConverting)
-                      const CircularProgressIndicator()
-                    else if (_result != null) ...[
-                      Text(
-                        _result!.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _result!.url,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: colorScheme.tertiary, fontSize: 13),
+          : _lastEntry != null
+              ? ConversionDetailContent(entry: _lastEntry!, services: _services)
+              : Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_imageUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _imageUrl!,
+                                width: 200,
+                                height: 200,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                               ),
                             ),
-                            IconButton(
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: _result!.url));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Link copied to clipboard')),
-                                );
-                              },
-                              icon: const Icon(Icons.copy, size: 18),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () => _openLink(_result!.url),
-                        icon: const Icon(Icons.open_in_new),
-                        label: Text('Open in $targetLabel'),
-                      ),
-                    ] else if (_errorMsg.isNotEmpty)
-                      Text(
-                        _errorMsg,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colorScheme.error, fontSize: 14),
-                      ),
-                  ],
+                          ),
+                        if (_isConverting)
+                          const CircularProgressIndicator()
+                        else if (_errorMsg.isNotEmpty)
+                          Text(
+                            _errorMsg,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: colorScheme.error, fontSize: 14),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-      ),
     );
   }
 }
