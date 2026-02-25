@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   final String defaultAction;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final ValueChanged<String> onDefaultActionChanged;
 
   const SettingsPage({
     super.key,
     required this.defaultAction,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.onDefaultActionChanged,
   });
 
   @override
@@ -21,6 +22,19 @@ class _SettingsPageState extends State<SettingsPage> {
   late String _selected;
   late ThemeMode _themeMode;
 
+  static const _themeLabels = {
+    ThemeMode.system: 'System default',
+    ThemeMode.light: 'Light',
+    ThemeMode.dark: 'Dark',
+  };
+
+  static const _actionLabels = {
+    'ask': 'Always ask',
+    'copy': 'Copy to clipboard',
+    'open': 'Open link directly',
+    'show': 'Show details',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -28,11 +42,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _themeMode = widget.themeMode;
   }
 
-  String get _themeModeLabel => switch (_themeMode) {
-    ThemeMode.system => 'System default',
-    ThemeMode.light => 'Light',
-    ThemeMode.dark => 'Dark',
-  };
+  String get _themeModeLabel => _themeLabels[_themeMode] ?? 'System default';
 
   Future<void> _showThemeDialog() async {
     final result = await showDialog<ThemeMode>(
@@ -40,14 +50,10 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: const Text('Theme'),
         children: [
-          for (final (mode, label) in [
-            (ThemeMode.system, 'System default'),
-            (ThemeMode.light, 'Light'),
-            (ThemeMode.dark, 'Dark'),
-          ])
+          for (final entry in _themeLabels.entries)
             RadioListTile<ThemeMode>(
-              title: Text(label),
-              value: mode,
+              title: Text(entry.value),
+              value: entry.key,
               groupValue: _themeMode,
               onChanged: (v) => Navigator.pop(ctx, v),
             ),
@@ -59,13 +65,6 @@ class _SettingsPageState extends State<SettingsPage> {
       widget.onThemeModeChanged(result);
     }
   }
-
-  static const _actionLabels = {
-    'ask': 'Always ask',
-    'copy': 'Copy to clipboard',
-    'open': 'Open link directly',
-    'show': 'Show details',
-  };
 
   String get _actionLabel => _actionLabels[_selected] ?? _selected;
 
@@ -87,8 +86,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (result != null) {
       setState(() => _selected = result);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('default_action', result);
+      widget.onDefaultActionChanged(result);
     }
   }
 

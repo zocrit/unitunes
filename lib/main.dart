@@ -50,14 +50,13 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _setThemeMode(ThemeMode mode) {
+  Future<void> _setThemeMode(ThemeMode mode) async {
     setState(() => _themeMode = mode);
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('theme_mode', switch (mode) {
-        ThemeMode.light => 'light',
-        ThemeMode.dark => 'dark',
-        ThemeMode.system => 'system',
-      });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', switch (mode) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
     });
   }
 
@@ -369,6 +368,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _setDefaultAction(String action) async {
+    setState(() => _defaultAction = action);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('default_action', action);
+  }
+
   void _submitPastedLink() {
     final text = _pasteController.text.trim();
     if (text.isEmpty) return;
@@ -396,21 +401,18 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () async {
-              await Navigator.push(
+            onPressed: () {
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => SettingsPage(
                     defaultAction: _defaultAction,
                     themeMode: widget.themeMode,
                     onThemeModeChanged: widget.onThemeModeChanged,
+                    onDefaultActionChanged: _setDefaultAction,
                   ),
                 ),
               );
-              final prefs = await SharedPreferences.getInstance();
-              setState(() {
-                _defaultAction = prefs.getString('default_action') ?? 'ask';
-              });
             },
           ),
         ],
