@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
   bool _isConverting = false;
   String _shareTargetType = 'youtube_music';
   String _defaultAction = 'ask';
+  String? _imageUrl;
 
   late StreamSubscription _intentSub;
   StreamSubscription? _targetEventSub;
@@ -211,7 +212,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    setState(() { _result = null; _errorMsg = ''; });
+    setState(() { _result = null; _errorMsg = ''; _imageUrl = null; });
 
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
@@ -235,6 +236,7 @@ class _HomePageState extends State<HomePage> {
         .where((e) => e.sourceUrl == text && e.targetId == target.id)
         .firstOrNull;
     if (cached != null) {
+      setState(() => _imageUrl = cached.imageUrl);
       _handleResult(SearchResultItem(url: cached.targetUrl, title: cached.title));
       return;
     }
@@ -251,6 +253,8 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
+      setState(() => _imageUrl = params.imageUrl);
+
       final searchResult = await target.search(params);
 
       if (searchResult.results.isNotEmpty) {
@@ -263,6 +267,7 @@ class _HomePageState extends State<HomePage> {
           targetId: target.id,
           type: params.type,
           timestamp: DateTime.now(),
+          imageUrl: params.imageUrl,
         ));
         setState(() => _isConverting = false);
         _handleResult(item);
@@ -526,27 +531,20 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Target: $targetLabel',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
+                    if (_imageUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            _imageUrl!,
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Shared Link:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(
-                      _sharedText,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colorScheme.primary),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      '$targetLabel Link:',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
                     if (_isConverting)
                       const CircularProgressIndicator()
                     else if (_result != null) ...[

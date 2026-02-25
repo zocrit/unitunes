@@ -4,12 +4,14 @@ class SearchParams {
   final String? name;
   final String? album;
   final String? artist;
+  final String? imageUrl;
   final ContentType type;
 
   SearchParams({
     this.name,
     this.album,
     this.artist,
+    this.imageUrl,
     required this.type,
   });
 

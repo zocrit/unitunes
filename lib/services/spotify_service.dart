@@ -143,6 +143,8 @@ class SpotifyService implements MusicService {
       if (name == null) return null;
 
       final description = data['description'] as String? ?? '';
+      final ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"');
+      final imageUrl = ogImage.firstMatch(html)?.group(1);
 
       switch (urlType) {
         case 'track':
@@ -150,6 +152,7 @@ class SpotifyService implements MusicService {
           return SearchParams(
             name: name,
             artist: artist,
+            imageUrl: imageUrl,
             type: ContentType.song,
           );
         case 'album':
@@ -157,11 +160,13 @@ class SpotifyService implements MusicService {
           return SearchParams(
             album: name,
             artist: artist,
+            imageUrl: imageUrl,
             type: ContentType.album,
           );
         case 'artist':
           return SearchParams(
             artist: name,
+            imageUrl: imageUrl,
             type: ContentType.artist,
           );
         default:
@@ -191,12 +196,14 @@ class SpotifyService implements MusicService {
             name: track.name,
             album: track.album?.name,
             artist: track.artists?.isNotEmpty == true ? track.artists!.first.name : null,
+            imageUrl: track.album?.images?.firstOrNull?.url,
             type: ContentType.song,
           );
         case 'artist':
           final artist = await _spotifyApi!.artists.get(id);
           return SearchParams(
             artist: artist.name,
+            imageUrl: artist.images?.firstOrNull?.url,
             type: ContentType.artist,
           );
         case 'album':
@@ -204,6 +211,7 @@ class SpotifyService implements MusicService {
           return SearchParams(
             album: album.name,
             artist: album.artists?.isNotEmpty == true ? album.artists!.first.name : null,
+            imageUrl: album.images?.firstOrNull?.url,
             type: ContentType.album,
           );
         default:
