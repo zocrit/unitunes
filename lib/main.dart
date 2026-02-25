@@ -75,10 +75,7 @@ class _MyAppState extends State<MyApp> {
         useMaterial3: true,
       ),
       themeMode: _themeMode,
-      home: HomePage(
-        themeMode: _themeMode,
-        onThemeModeChanged: _setThemeMode,
-      ),
+      home: HomePage(themeMode: _themeMode, onThemeModeChanged: _setThemeMode),
     );
   }
 }
@@ -117,8 +114,12 @@ class _HomePageState extends State<HomePage> {
   final _servicesReady = Completer<void>();
   String? _pendingLink;
 
-  static const _targetChannel = MethodChannel('io.github.zocrit.unitunes/share_target');
-  static const _targetEvents = EventChannel('io.github.zocrit.unitunes/share_target_events');
+  static const _targetChannel = MethodChannel(
+    'io.github.zocrit.unitunes/share_target',
+  );
+  static const _targetEvents = EventChannel(
+    'io.github.zocrit.unitunes/share_target_events',
+  );
 
   MusicService? get _target =>
       _services.where((s) => s.id == _shareTargetType).firstOrNull;
@@ -155,7 +156,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _fetchShareTarget() async {
     try {
-      final result = await _targetChannel.invokeMethod<String>('getShareTargetType');
+      final result = await _targetChannel.invokeMethod<String>(
+        'getShareTargetType',
+      );
       if (result != null) setState(() => _shareTargetType = result);
     } catch (_) {}
   }
@@ -171,8 +174,14 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     _defaultAction = prefs.getString('default_action') ?? 'ask';
 
-    const clientId = String.fromEnvironment('SPOTIFY_CLIENT_ID', defaultValue: '');
-    const clientSecret = String.fromEnvironment('SPOTIFY_CLIENT_SECRET', defaultValue: '');
+    const clientId = String.fromEnvironment(
+      'SPOTIFY_CLIENT_ID',
+      defaultValue: '',
+    );
+    const clientSecret = String.fromEnvironment(
+      'SPOTIFY_CLIENT_SECRET',
+      defaultValue: '',
+    );
 
     SpotifyService spotifyService;
     if (clientId.isNotEmpty && clientSecret.isNotEmpty) {
@@ -186,11 +195,7 @@ class _HomePageState extends State<HomePage> {
       spotifyService = SpotifyService();
     }
 
-    _services = [
-      spotifyService,
-      YoutubeMusicService(),
-      TidalService(),
-    ];
+    _services = [spotifyService, YoutubeMusicService(), TidalService()];
 
     _servicesReady.complete();
     final historyService = HistoryService(prefs);
@@ -209,40 +214,67 @@ class _HomePageState extends State<HomePage> {
   Future<void> _convertLink(String text) async {
     if (!_servicesReady.isCompleted) {
       _pendingLink = text;
-      setState(() { _isConverting = true; });
+      setState(() {
+        _isConverting = true;
+      });
       return;
     }
 
-    setState(() { _lastEntry = null; _errorMsg = ''; _imageUrl = null; });
+    setState(() {
+      _lastEntry = null;
+      _errorMsg = '';
+      _imageUrl = null;
+    });
 
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
-      setState(() { _errorMsg = 'Unsupported link'; });
+      setState(() {
+        _errorMsg = 'Unsupported link';
+      });
       return;
     }
 
     final target = _target;
     if (target == null) {
-      setState(() { _errorMsg = 'Unknown target service'; });
+      setState(() {
+        _errorMsg = 'Unknown target service';
+      });
       return;
     }
 
     if (source.id == target.id) {
-      Fluttertoast.showToast(msg: 'This link is already from ${source.displayName}');
-      SystemNavigator.pop();
+      if (_launchedFromShare) {
+        Fluttertoast.showToast(
+          msg: 'This link is already from ${source.displayName}',
+        );
+        SystemNavigator.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('This link is already from ${source.displayName}'),
+          ),
+        );
+        setState(() {
+          _sharedText = '';
+        });
+      }
       return;
     }
 
-    final cached = _historyService?.load()
-        .where((e) => e.sourceUrl == text && e.targetId == target.id)
-        .firstOrNull;
+    final cached =
+        _historyService
+            ?.load()
+            .where((e) => e.sourceUrl == text && e.targetId == target.id)
+            .firstOrNull;
     if (cached != null) {
       setState(() => _imageUrl = cached.imageUrl);
       _handleResult(cached);
       return;
     }
 
-    setState(() { _isConverting = true; });
+    setState(() {
+      _isConverting = true;
+    });
 
     try {
       final params = await source.parse(text);
@@ -306,54 +338,58 @@ class _HomePageState extends State<HomePage> {
     final targetLabel = _target?.displayName ?? 'target';
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                entry.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    entry.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy),
+                  title: const Text('Copy link'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _copyAndFinish(entry.targetUrl);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new),
+                  title: Text('Open in $targetLabel'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openAndFinish(entry.targetUrl);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('Show details'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _lastEntry = entry);
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy link'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _copyAndFinish(entry.targetUrl);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text('Open in $targetLabel'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _openAndFinish(entry.targetUrl);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('Show details'),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => _lastEntry = entry);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   Future<void> _copyAndFinish(String url) async {
     await Clipboard.setData(ClipboardData(text: url));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link copied to clipboard')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
     }
     _exitOrReset();
   }
@@ -387,9 +423,9 @@ class _HomePageState extends State<HomePage> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open link')));
     }
   }
 
@@ -419,173 +455,262 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('UniTunes'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsPage(
-                    defaultAction: _defaultAction,
-                    themeMode: widget.themeMode,
-                    onThemeModeChanged: widget.onThemeModeChanged,
-                    onDefaultActionChanged: _setDefaultAction,
+    return PopScope(
+      canPop: _sharedText.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exitOrReset();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('UniTunes'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => SettingsPage(
+                          defaultAction: _defaultAction,
+                          themeMode: widget.themeMode,
+                          onThemeModeChanged: widget.onThemeModeChanged,
+                          onDefaultActionChanged: _setDefaultAction,
+                        ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: _sharedText.isEmpty
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _pasteController,
-                    decoration: InputDecoration(
-                      hintText: 'Paste a music link...',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.arrow_forward),
-                        onPressed: _submitPastedLink,
+                );
+              },
+            ),
+          ],
+        ),
+        body:
+            _sharedText.isEmpty
+                ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _pasteController,
+                        decoration: InputDecoration(
+                          hintText: 'Paste a music link...',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: _submitPastedLink,
+                          ),
+                        ),
+                        onSubmitted: (_) => _submitPastedLink(),
                       ),
-                    ),
-                    onSubmitted: (_) => _submitPastedLink(),
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        const kHeaderHeight = 48.0;
-                        const kTileHeight = 72.0;
-                        final available = constraints.maxHeight - kHeaderHeight;
-                        final maxItems = (available / kTileHeight).floor().clamp(0, 10);
-                        final itemCount = min(_recentEntries.length, maxItems);
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Recent',
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                TextButton(
-                                  onPressed: _historyService == null
-                                      ? null
-                                      : () async {
-                                          await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => HistoryPage(
-                                                historyService: _historyService!,
-                                                services: _services,
-                                              ),
-                                            ),
-                                          );
-                                          setState(() {
-                                            _recentEntries = _historyService!.load();
-                                          });
-                                        },
-                                  child: const Text('See all'),
-                                ),
-                              ],
-                            ),
-                            if (_recentEntries.isEmpty)
-                              Expanded(
-                                child: Center(
-                                  child: Text(
-                                    'No conversions yet',
-                                    style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
+                      if (_services.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        SegmentedButton<String>(
+                          segments:
+                              _services
+                                  .map(
+                                    (s) => ButtonSegment<String>(
+                                      value: s.id,
+                                      label: Text(s.displayName),
                                     ),
-                                  ),
-                                ),
-                              )
-                            else
-                              Expanded(
-                                child: ListView.builder(
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: itemCount,
-                                  itemBuilder: (context, index) {
-                                    final entry = _recentEntries[index];
-                                    final targetName = _services.displayNameFor(entry.targetId);
-                                    return InkWell(
-                                      onTap: () => showEntryActionSheet(context, entry, _services),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        child: IntrinsicHeight(
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                                            children: [
-                                              SizedBox(
-                                                width: 40,
-                                                child: entry.imageUrl != null
-                                                    ? ClipRRect(
-                                                        borderRadius: BorderRadius.circular(6),
-                                                        child: Image.network(
-                                                          entry.imageUrl!,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (_, __, ___) => const Center(
-                                                            child: Icon(Icons.music_note),
-                                                          ),
+                                  )
+                                  .toList(),
+                          selected: {_shareTargetType},
+                          onSelectionChanged: (selected) {
+                            setState(() => _shareTargetType = selected.first);
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            const kHeaderHeight = 48.0;
+                            const kTileHeight = 72.0;
+                            final available =
+                                constraints.maxHeight - kHeaderHeight;
+                            final maxItems = (available / kTileHeight)
+                                .floor()
+                                .clamp(0, 10);
+                            final itemCount = min(
+                              _recentEntries.length,
+                              maxItems,
+                            );
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Recent',
+                                      style:
+                                          Theme.of(
+                                            context,
+                                          ).textTheme.titleMedium,
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          _historyService == null
+                                              ? null
+                                              : () async {
+                                                await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (_) => HistoryPage(
+                                                          historyService:
+                                                              _historyService!,
+                                                          services: _services,
                                                         ),
-                                                      )
-                                                    : const Center(child: Icon(Icons.music_note)),
-                                              ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    SingleChildScrollView(
-                                                      scrollDirection: Axis.horizontal,
-                                                      child: Text(
-                                                        entry.artist != null
-                                                            ? '${entry.title} - ${entry.artist}'
-                                                            : entry.title,
-                                                        maxLines: 1,
-                                                        style: Theme.of(context).textTheme.titleMedium,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '$targetName \u00b7 ${entry.relativeTime}',
-                                                      style: Theme.of(context).textTheme.bodyMedium,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const Center(child: Icon(Icons.chevron_right)),
-                                            ],
-                                          ),
+                                                  ),
+                                                );
+                                                setState(() {
+                                                  _recentEntries =
+                                                      _historyService!.load();
+                                                });
+                                              },
+                                      child: const Text('See all'),
+                                    ),
+                                  ],
+                                ),
+                                if (_recentEntries.isEmpty)
+                                  Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        'No conversions yet',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurfaceVariant,
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                                    ),
+                                  )
+                                else
+                                  Expanded(
+                                    child: ListView.builder(
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: itemCount,
+                                      itemBuilder: (context, index) {
+                                        final entry = _recentEntries[index];
+                                        final targetName = _services
+                                            .displayNameFor(entry.targetId);
+                                        return InkWell(
+                                          onTap:
+                                              () => showEntryActionSheet(
+                                                context,
+                                                entry,
+                                                _services,
+                                              ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            child: IntrinsicHeight(
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 40,
+                                                    child:
+                                                        entry.imageUrl != null
+                                                            ? ClipRRect(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    6,
+                                                                  ),
+                                                              child: Image.network(
+                                                                entry.imageUrl!,
+                                                                fit:
+                                                                    BoxFit
+                                                                        .cover,
+                                                                errorBuilder:
+                                                                    (
+                                                                      _,
+                                                                      __,
+                                                                      ___,
+                                                                    ) => const Center(
+                                                                      child: Icon(
+                                                                        Icons
+                                                                            .music_note,
+                                                                      ),
+                                                                    ),
+                                                              ),
+                                                            )
+                                                            : const Center(
+                                                              child: Icon(
+                                                                Icons
+                                                                    .music_note,
+                                                              ),
+                                                            ),
+                                                  ),
+                                                  const SizedBox(width: 16),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        SingleChildScrollView(
+                                                          scrollDirection:
+                                                              Axis.horizontal,
+                                                          child: Text(
+                                                            entry.artist != null
+                                                                ? '${entry.title} - ${entry.artist}'
+                                                                : entry.title,
+                                                            maxLines: 1,
+                                                            style:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .textTheme
+                                                                    .titleMedium,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '$targetName \u00b7 ${entry.relativeTime}',
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodyMedium,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const Center(
+                                                    child: Icon(
+                                                      Icons.chevron_right,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : _lastEntry != null
-              ? ConversionDetailContent(entry: _lastEntry!, services: _services)
-              : Center(
+                )
+                : _lastEntry != null
+                ? ConversionDetailContent(
+                  entry: _lastEntry!,
+                  services: _services,
+                )
+                : Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -601,7 +726,8 @@ class _HomePageState extends State<HomePage> {
                                 width: 200,
                                 height: 200,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                errorBuilder:
+                                    (_, __, ___) => const SizedBox.shrink(),
                               ),
                             ),
                           ),
@@ -611,12 +737,16 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             _errorMsg,
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: colorScheme.error, fontSize: 14),
+                            style: TextStyle(
+                              color: colorScheme.error,
+                              fontSize: 14,
+                            ),
                           ),
                       ],
                     ),
                   ),
                 ),
+      ),
     );
   }
 }
