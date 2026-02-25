@@ -420,13 +420,7 @@ class _HomePageState extends State<HomePage> {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open link')));
-    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _setDefaultAction(String action) async {

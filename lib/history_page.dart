@@ -43,7 +43,7 @@ void showEntryActionSheet(
             onTap: () async {
               Navigator.pop(ctx);
               final uri = Uri.tryParse(entry.targetUrl);
-              if (uri != null && await canLaunchUrl(uri)) {
+              if (uri != null) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
             },
@@ -121,7 +121,7 @@ class ConversionDetailContent extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () async {
                 final uri = Uri.tryParse(entry.targetUrl);
-                if (uri != null && await canLaunchUrl(uri)) {
+                if (uri != null) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }
               },
