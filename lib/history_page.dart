@@ -5,6 +5,55 @@ import 'models/history_entry.dart';
 import 'services/history_service.dart';
 import 'services/music_service.dart';
 
+void showEntryActionSheet(
+  BuildContext context,
+  HistoryEntry entry,
+  List<MusicService> services,
+) {
+  final targetLabel = services.displayNameFor(entry.targetId);
+  showModalBottomSheet(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              entry.title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy),
+            title: const Text('Copy link'),
+            onTap: () {
+              Navigator.pop(ctx);
+              Clipboard.setData(ClipboardData(text: entry.targetUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Link copied to clipboard')),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.open_in_new),
+            title: Text('Open in $targetLabel'),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final uri = Uri.tryParse(entry.targetUrl);
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class HistoryPage extends StatefulWidget {
   final HistoryService historyService;
   final List<MusicService> services;
@@ -26,78 +75,6 @@ class _HistoryPageState extends State<HistoryPage> {
   void initState() {
     super.initState();
     _entries = widget.historyService.load();
-  }
-
-  String _displayName(String serviceId) {
-    return widget.services
-            .where((s) => s.id == serviceId)
-            .firstOrNull
-            ?.displayName ??
-        serviceId;
-  }
-
-  String _relativeTime(DateTime timestamp) {
-    final diff = DateTime.now().difference(timestamp);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-  }
-
-  Future<void> _openLink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link')),
-      );
-    }
-  }
-
-  void _showActionSheet(HistoryEntry entry) {
-    final targetLabel = _displayName(entry.targetId);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                entry.title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy link'),
-              onTap: () {
-                Navigator.pop(ctx);
-                Clipboard.setData(ClipboardData(text: entry.targetUrl));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Link copied to clipboard')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text('Open in $targetLabel'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _openLink(entry.targetUrl);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _clearHistory() async {
@@ -153,8 +130,8 @@ class _HistoryPageState extends State<HistoryPage> {
               itemCount: _entries.length,
               itemBuilder: (context, index) {
                 final entry = _entries[index];
-                final sourceName = _displayName(entry.sourceId);
-                final targetName = _displayName(entry.targetId);
+                final sourceName = widget.services.displayNameFor(entry.sourceId);
+                final targetName = widget.services.displayNameFor(entry.targetId);
                 return ListTile(
                   title: Text(
                     entry.title,
@@ -162,10 +139,10 @@ class _HistoryPageState extends State<HistoryPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
-                    '$sourceName \u2192 $targetName \u00b7 ${_relativeTime(entry.timestamp)}',
+                    '$sourceName \u2192 $targetName \u00b7 ${entry.relativeTime}',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showActionSheet(entry),
+                  onTap: () => showEntryActionSheet(context, entry, widget.services),
                 );
               },
             ),

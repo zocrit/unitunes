@@ -10,6 +10,11 @@ abstract class MusicService {
   Future<SearchResult> search(SearchParams params);
 }
 
+extension MusicServiceLookup on List<MusicService> {
+  String displayNameFor(String id) =>
+      where((s) => s.id == id).firstOrNull?.displayName ?? id;
+}
+
 final _ogTitle = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"');
 final _ogDesc = RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"');
 

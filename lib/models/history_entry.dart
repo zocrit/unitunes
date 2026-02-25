@@ -29,6 +29,15 @@ class HistoryEntry {
         'timestamp': timestamp.toIso8601String(),
       };
 
+  String get relativeTime {
+    final diff = DateTime.now().difference(timestamp);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+  }
+
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
         title: json['title'] as String,
         sourceUrl: json['sourceUrl'] as String,

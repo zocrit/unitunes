@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -110,7 +111,9 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription? _targetEventSub;
   List<MusicService> _services = [];
   HistoryService? _historyService;
+  List<HistoryEntry> _recentEntries = [];
 
+  final _pasteController = TextEditingController();
   final _servicesReady = Completer<void>();
   String? _pendingLink;
 
@@ -189,7 +192,11 @@ class _HomePageState extends State<HomePage> {
     ];
 
     _servicesReady.complete();
-    setState(() => _historyService = HistoryService(prefs));
+    final historyService = HistoryService(prefs);
+    setState(() {
+      _historyService = historyService;
+      _recentEntries = historyService.load();
+    });
 
     if (_pendingLink != null) {
       final link = _pendingLink!;
@@ -362,10 +369,19 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _submitPastedLink() {
+    final text = _pasteController.text.trim();
+    if (text.isEmpty) return;
+    _pasteController.clear();
+    setState(() => _sharedText = text);
+    _convertLink(text);
+  }
+
   @override
   void dispose() {
     _intentSub.cancel();
     _targetEventSub?.cancel();
+    _pasteController.dispose();
     super.dispose();
   }
 
@@ -378,20 +394,6 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('UniTunes'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: _historyService == null ? null : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => HistoryPage(
-                    historyService: _historyService!,
-                    services: _services,
-                  ),
-                ),
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
@@ -413,17 +415,111 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: Center(
-        child: _sharedText.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  'Share a music link to this app to convert it.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
-                ),
-              )
-            : Padding(
+      body: _sharedText.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _pasteController,
+                    decoration: InputDecoration(
+                      hintText: 'Paste a music link...',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.arrow_forward),
+                        onPressed: _submitPastedLink,
+                      ),
+                    ),
+                    onSubmitted: (_) => _submitPastedLink(),
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const kHeaderHeight = 48.0;
+                        const kTileHeight = 72.0;
+                        final available = constraints.maxHeight - kHeaderHeight;
+                        final maxItems = (available / kTileHeight).floor().clamp(0, 10);
+                        final itemCount = min(_recentEntries.length, maxItems);
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Recent',
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                                TextButton(
+                                  onPressed: _historyService == null
+                                      ? null
+                                      : () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => HistoryPage(
+                                                historyService: _historyService!,
+                                                services: _services,
+                                              ),
+                                            ),
+                                          );
+                                          setState(() {
+                                            _recentEntries = _historyService!.load();
+                                          });
+                                        },
+                                  child: const Text('See all'),
+                                ),
+                              ],
+                            ),
+                            if (_recentEntries.isEmpty)
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    'No conversions yet',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Expanded(
+                                child: ListView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: itemCount,
+                                  itemBuilder: (context, index) {
+                                    final entry = _recentEntries[index];
+                                    final sourceName = _services.displayNameFor(entry.sourceId);
+                                    final targetName = _services.displayNameFor(entry.targetId);
+                                    return ListTile(
+                                      title: Text(
+                                        entry.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: Text(
+                                        '$sourceName \u2192 $targetName \u00b7 ${entry.relativeTime}',
+                                      ),
+                                      trailing: const Icon(Icons.chevron_right),
+                                      onTap: () => showEntryActionSheet(context, entry, _services),
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Center(
+              child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
