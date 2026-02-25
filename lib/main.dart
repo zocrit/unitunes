@@ -505,19 +505,32 @@ class _HomePageState extends State<HomePage> {
                       ),
                       if (_services.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        SegmentedButton<String>(
-                          segments:
-                              _services
-                                  .map(
-                                    (s) => ButtonSegment<String>(
-                                      value: s.id,
-                                      label: Text(s.displayName),
-                                    ),
-                                  )
-                                  .toList(),
-                          selected: {_shareTargetType},
-                          onSelectionChanged: (selected) {
-                            setState(() => _shareTargetType = selected.first);
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minWidth: constraints.maxWidth,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: _services.map((s) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: ChoiceChip(
+                                        showCheckmark: false,
+                                        label: Text(s.displayName),
+                                        selected: s.id == _shareTargetType,
+                                        onSelected: (_) {
+                                          setState(() => _shareTargetType = s.id);
+                                        },
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            );
                           },
                         ),
                       ],
