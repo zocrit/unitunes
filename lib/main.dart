@@ -168,6 +168,14 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final cached = _historyService?.load()
+        .where((e) => e.sourceUrl == text && e.targetId == target.id)
+        .firstOrNull;
+    if (cached != null) {
+      _handleResult(SearchResultItem(url: cached.targetUrl, title: cached.title));
+      return;
+    }
+
     setState(() { _isConverting = true; });
 
     try {
