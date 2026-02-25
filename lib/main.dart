@@ -66,7 +66,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _fetchShareTarget();
     _listenForTargetChanges();
     _initServices();
 
@@ -106,6 +105,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initServices() async {
+    await _fetchShareTarget();
     final prefs = await SharedPreferences.getInstance();
     _defaultAction = prefs.getString('default_action') ?? 'ask';
 
@@ -162,7 +162,12 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (source.id == target.id) {
-      setState(() { _errorMsg = 'This link is already from ${source.displayName}'; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('This link is already from ${source.displayName}')),
+        );
+      }
+      SystemNavigator.pop();
       return;
     }
 

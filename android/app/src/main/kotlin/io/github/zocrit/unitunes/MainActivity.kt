@@ -38,10 +38,10 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
         setIntent(intent)
         shareTargetType = resolveShareTarget(intent)
         eventSink?.success(shareTargetType)
+        super.onNewIntent(intent)
     }
 
     private fun resolveShareTarget(intent: Intent?): String {
