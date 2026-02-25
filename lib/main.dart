@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/history_entry.dart';
 import 'models/search_models.dart';
@@ -162,11 +163,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (source.id == target.id) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('This link is already from ${source.displayName}')),
-        );
-      }
+      Fluttertoast.showToast(msg: 'This link is already from ${source.displayName}');
       SystemNavigator.pop();
       return;
     }
