@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
   String _shareTargetType = 'youtube_music';
   String _defaultAction = 'ask';
   String? _imageUrl;
+  bool _launchedFromShare = false;
 
   late StreamSubscription _intentSub;
   StreamSubscription? _targetEventSub;
@@ -132,6 +133,7 @@ class _HomePageState extends State<HomePage> {
     // Link shared while app was closed
     ReceiveSharingIntent.instance.getInitialMedia().then((value) {
       if (value.isNotEmpty) {
+        _launchedFromShare = true;
         _onSharedText(value.first.path);
         ReceiveSharingIntent.instance.reset();
       }
@@ -289,9 +291,9 @@ class _HomePageState extends State<HomePage> {
   void _handleResult(HistoryEntry entry) {
     switch (_defaultAction) {
       case 'copy':
-        _copyAndPop(entry.targetUrl);
+        _copyAndFinish(entry.targetUrl);
       case 'open':
-        _openAndPop(entry.targetUrl);
+        _openAndFinish(entry.targetUrl);
       case 'show':
         setState(() => _lastEntry = entry);
       default: // 'ask'
@@ -321,7 +323,7 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Copy link'),
               onTap: () {
                 Navigator.pop(ctx);
-                _copyAndPop(entry.targetUrl);
+                _copyAndFinish(entry.targetUrl);
               },
             ),
             ListTile(
@@ -329,7 +331,7 @@ class _HomePageState extends State<HomePage> {
               title: Text('Open in $targetLabel'),
               onTap: () {
                 Navigator.pop(ctx);
-                _openAndPop(entry.targetUrl);
+                _openAndFinish(entry.targetUrl);
               },
             ),
             ListTile(
@@ -346,19 +348,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _copyAndPop(String url) async {
+  Future<void> _copyAndFinish(String url) async {
     await Clipboard.setData(ClipboardData(text: url));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Link copied to clipboard')),
       );
     }
-    SystemNavigator.pop();
+    _exitOrReset();
   }
 
-  Future<void> _openAndPop(String url) async {
+  Future<void> _openAndFinish(String url) async {
     await _openLink(url);
-    SystemNavigator.pop();
+    _exitOrReset();
+  }
+
+  void _exitOrReset() {
+    if (_launchedFromShare) {
+      SystemNavigator.pop();
+    } else {
+      setState(() {
+        _sharedText = '';
+        _lastEntry = null;
+        _errorMsg = '';
+        _imageUrl = null;
+        _isConverting = false;
+        if (_historyService != null) {
+          _recentEntries = _historyService!.load();
+        }
+      });
+    }
   }
 
   Future<void> _openLink(String url) async {
