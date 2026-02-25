@@ -14,10 +14,18 @@ class HistoryService {
     final raw = _prefs.getString(_key);
     if (raw == null) return [];
     final list = jsonDecode(raw) as List;
-    return list
-        .cast<Map<String, dynamic>>()
-        .map(HistoryEntry.fromJson)
-        .toList();
+    return [
+      for (final item in list.cast<Map<String, dynamic>>())
+        if (_tryParse(item) case final entry?) entry,
+    ];
+  }
+
+  static HistoryEntry? _tryParse(Map<String, dynamic> json) {
+    try {
+      return HistoryEntry.fromJson(json);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> add(HistoryEntry entry) async {

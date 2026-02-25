@@ -16,7 +16,9 @@ extension MusicServiceLookup on List<MusicService> {
 }
 
 final _ogTitle = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"');
-final _ogDesc = RegExp(r'<meta\s+property="og:description"\s+content="([^"]*)"');
+final _ogDesc = RegExp(
+  r'<meta\s+property="og:description"\s+content="([^"]*)"',
+);
 final _ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"');
 
 Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
@@ -24,7 +26,8 @@ Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
   final response = await http.get(
     Uri.parse(fullUrl),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     },
   );
   if (response.statusCode != 200) return null;
@@ -36,8 +39,22 @@ Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
   final imageUrl = _ogImage.firstMatch(html)?.group(1);
 
   return switch (type) {
-    ContentType.song => SearchParams(name: title, artist: description, imageUrl: imageUrl, type: type),
-    ContentType.album => SearchParams(album: title, artist: description, imageUrl: imageUrl, type: type),
-    ContentType.artist => SearchParams(artist: title, imageUrl: imageUrl, type: type),
+    ContentType.song => SearchParams(
+      name: title,
+      artist: description,
+      imageUrl: imageUrl,
+      type: type,
+    ),
+    ContentType.album => SearchParams(
+      album: title,
+      artist: description,
+      imageUrl: imageUrl,
+      type: type,
+    ),
+    ContentType.artist => SearchParams(
+      artist: title,
+      imageUrl: imageUrl,
+      type: type,
+    ),
   };
 }

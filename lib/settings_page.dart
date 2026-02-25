@@ -47,18 +47,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _showThemeDialog() async {
     final result = await showDialog<ThemeMode>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Theme'),
-        children: [
-          for (final entry in _themeLabels.entries)
-            RadioListTile<ThemeMode>(
-              title: Text(entry.value),
-              value: entry.key,
-              groupValue: _themeMode,
-              onChanged: (v) => Navigator.pop(ctx, v),
-            ),
-        ],
-      ),
+      builder:
+          (ctx) => SimpleDialog(
+            title: const Text('Theme'),
+            children: [
+              for (final entry in _themeLabels.entries)
+                RadioListTile<ThemeMode>(
+                  title: Text(entry.value),
+                  value: entry.key,
+                  groupValue: _themeMode,
+                  onChanged: (v) => Navigator.pop(ctx, v),
+                ),
+            ],
+          ),
     );
     if (result != null) {
       setState(() => _themeMode = result);
@@ -71,18 +72,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _showActionDialog() async {
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Default action'),
-        children: [
-          for (final entry in _actionLabels.entries)
-            RadioListTile<String>(
-              title: Text(entry.value),
-              value: entry.key,
-              groupValue: _selected,
-              onChanged: (v) => Navigator.pop(ctx, v),
-            ),
-        ],
-      ),
+      builder:
+          (ctx) => SimpleDialog(
+            title: const Text('Default action'),
+            children: [
+              for (final entry in _actionLabels.entries)
+                RadioListTile<String>(
+                  title: Text(entry.value),
+                  value: entry.key,
+                  groupValue: _selected,
+                  onChanged: (v) => Navigator.pop(ctx, v),
+                ),
+            ],
+          ),
     );
     if (result != null) {
       setState(() => _selected = result);
@@ -93,9 +95,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           ListTile(

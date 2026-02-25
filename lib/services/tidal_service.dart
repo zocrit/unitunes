@@ -12,8 +12,11 @@ class TidalService implements MusicService {
 
   static const _apiBase = 'https://api.tidal.com/v1';
   static const _token = 'REDACTED';
-  static final _countryCode =
-      Platform.localeName.split('_').lastOrNull?.toUpperCase() ?? 'US';
+  static final _countryCode = () {
+    final parts = Platform.localeName.split('_');
+    if (parts.length < 2) return 'US';
+    return parts[1].split('.').first.toUpperCase();
+  }();
 
   static const _searchTypes = {
     ContentType.song: 'tracks',
@@ -37,17 +40,13 @@ class TidalService implements MusicService {
     final match = _tidalUrlPattern.firstMatch(text);
     if (match == null) return null;
 
-    final ContentType type;
-    switch (match.group(1)!) {
-      case 'track':
-        type = ContentType.song;
-      case 'album':
-        type = ContentType.album;
-      case 'artist':
-        type = ContentType.artist;
-      default:
-        return null;
-    }
+    final type = switch (match.group(1)!) {
+      'track' => ContentType.song,
+      'album' => ContentType.album,
+      'artist' => ContentType.artist,
+      _ => null,
+    };
+    if (type == null) return null;
 
     try {
       return await scrapeOgMeta(text, type);
@@ -70,9 +69,7 @@ class TidalService implements MusicService {
         },
       );
 
-      final response = await http.get(uri, headers: {
-        'x-tidal-token': _token,
-      });
+      final response = await http.get(uri, headers: {'x-tidal-token': _token});
 
       if (response.statusCode != 200) {
         throw Exception('status ${response.statusCode}');
@@ -93,20 +90,20 @@ class TidalService implements MusicService {
       final id = item['id'];
       if (id == null) continue;
 
-      final String url;
-      final String title;
-
-      switch (type) {
-        case ContentType.song:
-          url = 'https://tidal.com/browse/track/$id';
-          title = item['title'] as String? ?? '';
-        case ContentType.album:
-          url = 'https://tidal.com/browse/album/$id';
-          title = item['title'] as String? ?? '';
-        case ContentType.artist:
-          url = 'https://tidal.com/browse/artist/$id';
-          title = item['name'] as String? ?? '';
-      }
+      final (url, title) = switch (type) {
+        ContentType.song => (
+          'https://tidal.com/browse/track/$id',
+          item['title'] as String? ?? '',
+        ),
+        ContentType.album => (
+          'https://tidal.com/browse/album/$id',
+          item['title'] as String? ?? '',
+        ),
+        ContentType.artist => (
+          'https://tidal.com/browse/artist/$id',
+          item['name'] as String? ?? '',
+        ),
+      };
 
       if (title.isNotEmpty) {
         results.add(SearchResultItem(url: url, title: title));

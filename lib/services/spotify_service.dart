@@ -8,10 +8,10 @@ class SpotifyService implements MusicService {
   final SpotifyApi? _spotifyApi;
 
   static final _spotifyUrlPattern = RegExp(
-    r'(?:https?://)?open\.spotify\.com/(track|artist|album)/([a-zA-Z0-9]+)'
+    r'(?:https?://)?open\.spotify\.com/(track|artist|album)/([a-zA-Z0-9]+)',
   );
   static final _shortLinkPattern = RegExp(
-    r'https?://spotify\.link/[a-zA-Z0-9]+'
+    r'https?://spotify\.link/[a-zA-Z0-9]+',
   );
   static final _jsonLdPattern = RegExp(
     r'<script\s+type="application/ld\+json">\s*(.*?)\s*</script>',
@@ -20,7 +20,10 @@ class SpotifyService implements MusicService {
 
   SpotifyService([this._spotifyApi]);
 
-  static Future<SpotifyService> create(String clientId, String clientSecret) async {
+  static Future<SpotifyService> create(
+    String clientId,
+    String clientSecret,
+  ) async {
     final credentials = SpotifyApiCredentials(clientId, clientSecret);
     final spotifyApi = SpotifyApi(credentials);
     return SpotifyService(spotifyApi);
@@ -34,7 +37,8 @@ class SpotifyService implements MusicService {
 
   @override
   bool detect(String text) {
-    return _spotifyUrlPattern.hasMatch(text) || _shortLinkPattern.hasMatch(text);
+    return _spotifyUrlPattern.hasMatch(text) ||
+        _shortLinkPattern.hasMatch(text);
   }
 
   @override
@@ -86,7 +90,8 @@ class SpotifyService implements MusicService {
       ContentType.artist => (SearchType.artist, 'artist'),
     };
 
-    final pages = await _spotifyApi!.search.get(query, types: [searchType]).first();
+    final pages =
+        await _spotifyApi!.search.get(query, types: [searchType]).first();
     final items = pages.first.items;
     if (items == null || items.isEmpty) return null;
 
@@ -100,10 +105,12 @@ class SpotifyService implements MusicService {
     if (id == null) return null;
 
     return SearchResult(
-      results: [SearchResultItem(
-        url: 'https://open.spotify.com/$urlSegment/$id',
-        title: name ?? query,
-      )],
+      results: [
+        SearchResultItem(
+          url: 'https://open.spotify.com/$urlSegment/$id',
+          title: name ?? query,
+        ),
+      ],
     );
   }
 
@@ -143,41 +150,40 @@ class SpotifyService implements MusicService {
       if (name == null) return null;
 
       final description = data['description'] as String? ?? '';
-      final ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"');
+      final ogImage = RegExp(
+        r'<meta\s+property="og:image"\s+content="([^"]*)"',
+      );
       final imageUrl = ogImage.firstMatch(html)?.group(1);
 
-      switch (urlType) {
-        case 'track':
-          final artist = _extractArtistFromDescription(description, afterIndex: 0);
-          return SearchParams(
-            name: name,
-            artist: artist,
-            imageUrl: imageUrl,
-            type: ContentType.song,
-          );
-        case 'album':
-          final artist = _extractArtistFromDescription(description, afterIndex: 1);
-          return SearchParams(
-            album: name,
-            artist: artist,
-            imageUrl: imageUrl,
-            type: ContentType.album,
-          );
-        case 'artist':
-          return SearchParams(
-            artist: name,
-            imageUrl: imageUrl,
-            type: ContentType.artist,
-          );
-        default:
-          return null;
-      }
+      return switch (urlType) {
+        'track' => SearchParams(
+          name: name,
+          artist: _extractArtistFromDescription(description, afterIndex: 0),
+          imageUrl: imageUrl,
+          type: ContentType.song,
+        ),
+        'album' => SearchParams(
+          album: name,
+          artist: _extractArtistFromDescription(description, afterIndex: 1),
+          imageUrl: imageUrl,
+          type: ContentType.album,
+        ),
+        'artist' => SearchParams(
+          artist: name,
+          imageUrl: imageUrl,
+          type: ContentType.artist,
+        ),
+        _ => null,
+      };
     } catch (_) {
       return null;
     }
   }
 
-  String? _extractArtistFromDescription(String description, {required int afterIndex}) {
+  String? _extractArtistFromDescription(
+    String description, {
+    required int afterIndex,
+  }) {
     final parts = description.split('·').map((s) => s.trim()).toList();
     final artistIndex = afterIndex + 1;
     if (parts.length > artistIndex) {
@@ -195,7 +201,10 @@ class SpotifyService implements MusicService {
           return SearchParams(
             name: track.name,
             album: track.album?.name,
-            artist: track.artists?.isNotEmpty == true ? track.artists!.first.name : null,
+            artist:
+                track.artists?.isNotEmpty == true
+                    ? track.artists!.first.name
+                    : null,
             imageUrl: track.album?.images?.firstOrNull?.url,
             type: ContentType.song,
           );
@@ -210,7 +219,10 @@ class SpotifyService implements MusicService {
           final album = await _spotifyApi!.albums.get(id);
           return SearchParams(
             album: album.name,
-            artist: album.artists?.isNotEmpty == true ? album.artists!.first.name : null,
+            artist:
+                album.artists?.isNotEmpty == true
+                    ? album.artists!.first.name
+                    : null,
             imageUrl: album.images?.firstOrNull?.url,
             type: ContentType.album,
           );
@@ -224,7 +236,8 @@ class SpotifyService implements MusicService {
 
   static Future<String?> _resolveShortLink(String url) async {
     try {
-      final request = http.Request('GET', Uri.parse(url))..followRedirects = false;
+      final request = http.Request('GET', Uri.parse(url))
+        ..followRedirects = false;
       final response = await request.send();
       return response.headers['location'];
     } catch (_) {

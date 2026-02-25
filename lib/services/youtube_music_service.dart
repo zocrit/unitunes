@@ -8,9 +8,15 @@ class YoutubeMusicService implements MusicService {
   static const _searchUrl = 'https://music.youtube.com/youtubei/v1/search';
   static const _apiKey = 'REDACTED';
 
-  static final _watchPattern = RegExp(r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)');
-  static final _browsePattern = RegExp(r'music\.youtube\.com/browse/([a-zA-Z0-9_-]+)');
-  static final _channelPattern = RegExp(r'music\.youtube\.com/channel/([a-zA-Z0-9_-]+)');
+  static final _watchPattern = RegExp(
+    r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
+  );
+  static final _browsePattern = RegExp(
+    r'music\.youtube\.com/browse/([a-zA-Z0-9_-]+)',
+  );
+  static final _channelPattern = RegExp(
+    r'music\.youtube\.com/channel/([a-zA-Z0-9_-]+)',
+  );
 
   final String _clientVersion;
 
@@ -18,7 +24,8 @@ class YoutubeMusicService implements MusicService {
 
   static String _buildClientVersion() {
     final now = DateTime.now().toUtc();
-    final date = '${now.year}'
+    final date =
+        '${now.year}'
         '${now.month.toString().padLeft(2, '0')}'
         '${now.day.toString().padLeft(2, '0')}';
     return '1.$date.01.00';
@@ -71,14 +78,15 @@ class YoutubeMusicService implements MusicService {
         Uri.parse('$_searchUrl?key=$_apiKey'),
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
         body: jsonEncode({
           'context': {
             'client': {
               'clientName': 'WEB_REMIX',
               'clientVersion': _clientVersion,
-            }
+            },
           },
           'query': params.query,
           'params': _filters[params.type],
@@ -100,9 +108,8 @@ class YoutubeMusicService implements MusicService {
     final results = <SearchResultItem>[];
 
     try {
-      final contents = data['contents']?['tabbedSearchResultsRenderer']
-          ?['tabs']?[0]?['tabRenderer']?['content']
-          ?['sectionListRenderer']?['contents'];
+      final contents =
+          data['contents']?['tabbedSearchResultsRenderer']?['tabs']?[0]?['tabRenderer']?['content']?['sectionListRenderer']?['contents'];
       if (contents == null) return SearchResult(results: []);
 
       for (final section in contents) {
@@ -130,23 +137,24 @@ class YoutubeMusicService implements MusicService {
 
       String? url;
       if (type == ContentType.song) {
-        final videoId = renderer['overlay']
-            ?['musicItemThumbnailOverlayRenderer']
-            ?['content']?['musicPlayButtonRenderer']
-            ?['playNavigationEndpoint']?['watchEndpoint']?['videoId'];
+        final videoId =
+            renderer['overlay']?['musicItemThumbnailOverlayRenderer']?['content']?['musicPlayButtonRenderer']?['playNavigationEndpoint']?['watchEndpoint']?['videoId'];
         if (videoId != null) url = 'https://music.youtube.com/watch?v=$videoId';
       } else {
-        final browseId = renderer['navigationEndpoint']?['browseEndpoint']?['browseId'];
+        final browseId =
+            renderer['navigationEndpoint']?['browseEndpoint']?['browseId'];
         if (browseId != null) {
-          url = type == ContentType.album
-              ? 'https://music.youtube.com/browse/$browseId'
-              : 'https://music.youtube.com/channel/$browseId';
+          url =
+              type == ContentType.album
+                  ? 'https://music.youtube.com/browse/$browseId'
+                  : 'https://music.youtube.com/channel/$browseId';
         }
       }
 
       final cols = renderer['flexColumns'] as List?;
-      final title = cols?[0]?['musicResponsiveListItemFlexColumnRenderer']
-          ?['text']?['runs']?[0]?['text'] as String?;
+      final title =
+          cols?[0]?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs']?[0]?['text']
+              as String?;
 
       if (url == null || title == null) return null;
       return SearchResultItem(url: url, title: title);

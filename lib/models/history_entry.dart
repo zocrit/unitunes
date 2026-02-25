@@ -24,16 +24,16 @@ class HistoryEntry {
   });
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'sourceUrl': sourceUrl,
-        'targetUrl': targetUrl,
-        'sourceId': sourceId,
-        'targetId': targetId,
-        'type': type.name,
-        'timestamp': timestamp.toIso8601String(),
-        if (imageUrl != null) 'imageUrl': imageUrl,
-        if (artist != null) 'artist': artist,
-      };
+    'title': title,
+    'sourceUrl': sourceUrl,
+    'targetUrl': targetUrl,
+    'sourceId': sourceId,
+    'targetId': targetId,
+    'type': type.name,
+    'timestamp': timestamp.toIso8601String(),
+    if (imageUrl != null) 'imageUrl': imageUrl,
+    if (artist != null) 'artist': artist,
+  };
 
   String get relativeTime {
     final diff = DateTime.now().difference(timestamp);
@@ -45,14 +45,14 @@ class HistoryEntry {
   }
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
-        title: json['title'] as String,
-        sourceUrl: json['sourceUrl'] as String,
-        targetUrl: json['targetUrl'] as String,
-        sourceId: json['sourceId'] as String,
-        targetId: json['targetId'] as String,
-        type: ContentType.values.byName(json['type'] as String),
-        timestamp: DateTime.parse(json['timestamp'] as String),
-        imageUrl: json['imageUrl'] as String?,
-        artist: json['artist'] as String?,
-      );
+    title: json['title'] as String,
+    sourceUrl: json['sourceUrl'] as String,
+    targetUrl: json['targetUrl'] as String,
+    sourceId: json['sourceId'] as String,
+    targetId: json['targetId'] as String,
+    type: ContentType.values.byName(json['type'] as String),
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    imageUrl: json['imageUrl'] as String?,
+    artist: json['artist'] as String?,
+  );
 }

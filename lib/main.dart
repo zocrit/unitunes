@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'models/history_entry.dart';
 import 'services/history_service.dart';
 import 'services/music_service.dart';
@@ -14,6 +13,7 @@ import 'services/youtube_music_service.dart';
 import 'services/tidal_service.dart';
 import 'history_page.dart';
 import 'settings_page.dart';
+import 'utils.dart';
 
 void main() {
   runApp(const MyApp());
@@ -170,9 +170,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initServices() async {
-    await _fetchShareTarget();
     final prefs = await SharedPreferences.getInstance();
     _defaultAction = prefs.getString('default_action') ?? 'ask';
+    _shareTargetType = prefs.getString('default_target') ?? _shareTargetType;
+    await _fetchShareTarget();
 
     const clientId = String.fromEnvironment(
       'SPOTIFY_CLIENT_ID',
@@ -256,14 +257,14 @@ class _HomePageState extends State<HomePage> {
         );
         setState(() {
           _sharedText = '';
+          _isConverting = false;
         });
       }
       return;
     }
 
     final cached =
-        _historyService
-            ?.load()
+        _recentEntries
             .where((e) => e.sourceUrl == text && e.targetId == target.id)
             .firstOrNull;
     if (cached != null) {
@@ -384,18 +385,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _copyAndFinish(String url) async {
-    await Clipboard.setData(ClipboardData(text: url));
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link copied to clipboard')));
-    }
+  void _copyAndFinish(String url) {
+    if (mounted) copyAndNotify(context, url);
     _exitOrReset();
   }
 
   Future<void> _openAndFinish(String url) async {
-    await _openLink(url);
+    await openLink(url);
     _exitOrReset();
   }
 
@@ -416,17 +412,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _openLink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
   Future<void> _setDefaultAction(String action) async {
     setState(() => _defaultAction = action);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('default_action', action);
+  }
+
+  Future<void> _setDefaultTarget(String targetId) async {
+    setState(() => _shareTargetType = targetId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('default_target', targetId);
   }
 
   void _submitPastedLink() {
@@ -448,6 +443,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final inputRadius = BorderRadius.circular(12);
 
     return PopScope(
       canPop: _sharedText.isEmpty,
@@ -456,6 +452,7 @@ class _HomePageState extends State<HomePage> {
       },
       child: Scaffold(
         appBar: AppBar(
+          centerTitle: true,
           title: const Text('UniTunes'),
           actions: [
             IconButton(
@@ -489,9 +486,27 @@ class _HomePageState extends State<HomePage> {
                         controller: _pasteController,
                         decoration: InputDecoration(
                           hintText: 'Paste a music link...',
-                          border: const OutlineInputBorder(),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: inputRadius,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: inputRadius,
+                            borderSide: BorderSide(color: colorScheme.outline),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: inputRadius,
+                            borderSide: BorderSide(
+                              color: colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
                           suffixIcon: IconButton(
-                            icon: const Icon(Icons.arrow_forward),
+                            icon: Icon(
+                              Icons.arrow_forward,
+                              color: colorScheme.primary,
+                            ),
                             onPressed: _submitPastedLink,
                           ),
                         ),
@@ -509,19 +524,40 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: _services.map((s) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      child: ChoiceChip(
-                                        showCheckmark: false,
-                                        label: Text(s.displayName),
-                                        selected: s.id == _shareTargetType,
-                                        onSelected: (_) {
-                                          setState(() => _shareTargetType = s.id);
-                                        },
-                                      ),
-                                    );
-                                  }).toList(),
+                                  children:
+                                      _services.map((s) {
+                                        final isSelected =
+                                            s.id == _shareTargetType;
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          child: ChoiceChip(
+                                            showCheckmark: false,
+                                            label: Text(s.displayName),
+                                            selected: isSelected,
+                                            selectedColor:
+                                                colorScheme.primaryContainer,
+                                            labelStyle: TextStyle(
+                                              color: isSelected
+                                                  ? colorScheme
+                                                      .onPrimaryContainer
+                                                  : colorScheme
+                                                      .onSurfaceVariant,
+                                            ),
+                                            side: isSelected
+                                                ? BorderSide.none
+                                                : BorderSide(
+                                                    color: colorScheme.outline,
+                                                  ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: inputRadius,
+                                            ),
+                                            onSelected:
+                                                (_) => _setDefaultTarget(s.id),
+                                          ),
+                                        );
+                                      }).toList(),
                                 ),
                               ),
                             );
@@ -553,10 +589,14 @@ class _HomePageState extends State<HomePage> {
                                   children: [
                                     Text(
                                       'Recent',
-                                      style:
-                                          Theme.of(
-                                            context,
-                                          ).textTheme.titleMedium,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color:
+                                                colorScheme.onSurfaceVariant,
+                                            letterSpacing: 0.5,
+                                          ),
                                     ),
                                     TextButton(
                                       onPressed:
@@ -602,104 +642,17 @@ class _HomePageState extends State<HomePage> {
                                       itemCount: itemCount,
                                       itemBuilder: (context, index) {
                                         final entry = _recentEntries[index];
-                                        final targetName = _services
-                                            .displayNameFor(entry.targetId);
-                                        return InkWell(
+                                        return HistoryTile(
+                                          entry: entry,
+                                          targetName: _services.displayNameFor(
+                                            entry.targetId,
+                                          ),
                                           onTap:
                                               () => showEntryActionSheet(
                                                 context,
                                                 entry,
                                                 _services,
                                               ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            child: IntrinsicHeight(
-                                              child: Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  SizedBox(
-                                                    width: 40,
-                                                    child:
-                                                        entry.imageUrl != null
-                                                            ? ClipRRect(
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    6,
-                                                                  ),
-                                                              child: Image.network(
-                                                                entry.imageUrl!,
-                                                                fit:
-                                                                    BoxFit
-                                                                        .cover,
-                                                                errorBuilder:
-                                                                    (
-                                                                      _,
-                                                                      __,
-                                                                      ___,
-                                                                    ) => const Center(
-                                                                      child: Icon(
-                                                                        Icons
-                                                                            .music_note,
-                                                                      ),
-                                                                    ),
-                                                              ),
-                                                            )
-                                                            : const Center(
-                                                              child: Icon(
-                                                                Icons
-                                                                    .music_note,
-                                                              ),
-                                                            ),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        SingleChildScrollView(
-                                                          scrollDirection:
-                                                              Axis.horizontal,
-                                                          child: Text(
-                                                            entry.artist != null
-                                                                ? '${entry.title} - ${entry.artist}'
-                                                                : entry.title,
-                                                            maxLines: 1,
-                                                            style:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .textTheme
-                                                                    .titleMedium,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '$targetName \u00b7 ${entry.relativeTime}',
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .bodyMedium,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  const Center(
-                                                    child: Icon(
-                                                      Icons.chevron_right,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
                                         );
                                       },
                                     ),
