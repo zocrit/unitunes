@@ -554,10 +554,32 @@ class _HomePageState extends State<HomePage> {
                         style: const TextStyle(fontSize: 15),
                       ),
                       const SizedBox(height: 4),
-                      SelectableText(
-                        _result!.url,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colorScheme.tertiary, fontSize: 13),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _result!.url,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: colorScheme.tertiary, fontSize: 13),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: _result!.url));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Link copied to clipboard')),
+                                );
+                              },
+                              icon: const Icon(Icons.copy, size: 18),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
