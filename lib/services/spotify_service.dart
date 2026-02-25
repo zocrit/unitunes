@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
 import '../models/search_models.dart';
+import 'music_service.dart';
 
-class SpotifyService {
+class SpotifyService implements MusicService {
   final SpotifyApi? _spotifyApi;
 
   static final _spotifyUrlPattern = RegExp(
@@ -25,10 +26,18 @@ class SpotifyService {
     return SpotifyService(spotifyApi);
   }
 
-  static bool detect(String text) {
+  @override
+  String get id => 'spotify';
+
+  @override
+  String get displayName => 'Spotify';
+
+  @override
+  bool detect(String text) {
     return _spotifyUrlPattern.hasMatch(text) || _shortLinkPattern.hasMatch(text);
   }
 
+  @override
   Future<SearchParams?> parse(String text) async {
     final resolved = await _resolveUrl(text);
     if (resolved == null) return null;
@@ -49,6 +58,53 @@ class SpotifyService {
     }
 
     return null;
+  }
+
+  @override
+  Future<SearchResult> search(SearchParams params) async {
+    if (_spotifyApi != null) {
+      try {
+        final result = await _apiSearch(params);
+        if (result != null) return result;
+      } catch (_) {}
+    }
+
+    final encoded = Uri.encodeComponent(params.query);
+    final url = 'https://open.spotify.com/search/$encoded';
+    return SearchResult(
+      results: [SearchResultItem(url: url, title: params.query)],
+    );
+  }
+
+  Future<SearchResult?> _apiSearch(SearchParams params) async {
+    final query = params.query;
+    if (query.isEmpty) return null;
+
+    final (searchType, urlSegment) = switch (params.type) {
+      ContentType.song => (SearchType.track, 'track'),
+      ContentType.album => (SearchType.album, 'album'),
+      ContentType.artist => (SearchType.artist, 'artist'),
+    };
+
+    final pages = await _spotifyApi!.search.get(query, types: [searchType]).first();
+    final items = pages.first.items;
+    if (items == null || items.isEmpty) return null;
+
+    final first = items.first;
+    final (id, name) = switch (first) {
+      Track t => (t.id, t.name),
+      AlbumSimple a => (a.id, a.name),
+      Artist a => (a.id, a.name),
+      _ => (null, null),
+    };
+    if (id == null) return null;
+
+    return SearchResult(
+      results: [SearchResultItem(
+        url: 'https://open.spotify.com/$urlSegment/$id',
+        title: name ?? query,
+      )],
+    );
   }
 
   Future<String?> _resolveUrl(String text) async {
@@ -90,7 +146,6 @@ class SpotifyService {
 
       switch (urlType) {
         case 'track':
-          // "Listen to X on Spotify. Song · ArtistName · 2024"
           final artist = _extractArtistFromDescription(description, afterIndex: 0);
           return SearchParams(
             name: name,
@@ -98,7 +153,6 @@ class SpotifyService {
             type: ContentType.song,
           );
         case 'album':
-          // "Listen to X on Spotify · album · ArtistName · 2024 · N songs"
           final artist = _extractArtistFromDescription(description, afterIndex: 1);
           return SearchParams(
             album: name,

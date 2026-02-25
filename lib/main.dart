@@ -5,6 +5,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/search_models.dart';
+import 'services/music_service.dart';
 import 'services/spotify_service.dart';
 import 'services/youtube_music_service.dart';
 import 'services/tidal_service.dart';
@@ -46,15 +47,16 @@ class _HomePageState extends State<HomePage> {
 
   late StreamSubscription _intentSub;
   StreamSubscription? _targetEventSub;
-  late SpotifyService _spotifyService;
-  late YoutubeMusicService _ytService;
-  late TidalService _tidalService;
+  List<MusicService> _services = [];
 
   final _servicesReady = Completer<void>();
   String? _pendingLink;
 
   static const _targetChannel = MethodChannel('io.github.zocrit.unitunes/share_target');
   static const _targetEvents = EventChannel('io.github.zocrit.unitunes/share_target_events');
+
+  MusicService? get _target =>
+      _services.where((s) => s.id == _shareTargetType).firstOrNull;
 
   @override
   void initState() {
@@ -106,19 +108,23 @@ class _HomePageState extends State<HomePage> {
     const clientId = String.fromEnvironment('SPOTIFY_CLIENT_ID', defaultValue: '');
     const clientSecret = String.fromEnvironment('SPOTIFY_CLIENT_SECRET', defaultValue: '');
 
-    _ytService = YoutubeMusicService();
-    _tidalService = TidalService();
-
+    SpotifyService spotifyService;
     if (clientId.isNotEmpty && clientSecret.isNotEmpty) {
       try {
-        _spotifyService = await SpotifyService.create(clientId, clientSecret);
+        spotifyService = await SpotifyService.create(clientId, clientSecret);
       } catch (e) {
         debugPrint('Failed to init Spotify with API, using scraping only: $e');
-        _spotifyService = SpotifyService();
+        spotifyService = SpotifyService();
       }
     } else {
-      _spotifyService = SpotifyService();
+      spotifyService = SpotifyService();
     }
+
+    _services = [
+      spotifyService,
+      YoutubeMusicService(),
+      TidalService(),
+    ];
 
     _servicesReady.complete();
 
@@ -130,14 +136,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _convertLink(String text) async {
-    if (!SpotifyService.detect(text)) {
-      setState(() { _errorMsg = 'Not a Spotify link'; });
-      return;
-    }
-
     if (!_servicesReady.isCompleted) {
       _pendingLink = text;
       setState(() { _isConverting = true; });
+      return;
+    }
+
+    final source = _services.where((s) => s.detect(text)).firstOrNull;
+    if (source == null) {
+      setState(() { _errorMsg = 'Unsupported link'; });
+      return;
+    }
+
+    final target = _target;
+    if (target == null) {
+      setState(() { _errorMsg = 'Unknown target service'; });
+      return;
+    }
+
+    if (source.id == target.id) {
+      setState(() { _errorMsg = 'This link is already from ${source.displayName}'; });
       return;
     }
 
@@ -148,21 +166,16 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final params = await _spotifyService.parse(text);
+      final params = await source.parse(text);
       if (params == null) {
         setState(() {
-          _errorMsg = 'Could not parse Spotify link';
+          _errorMsg = 'Could not parse ${source.displayName} link';
           _isConverting = false;
         });
         return;
       }
 
-      final SearchResult searchResult;
-      if (_shareTargetType == 'tidal') {
-        searchResult = await _tidalService.search(params);
-      } else {
-        searchResult = await _ytService.search(params);
-      }
+      final searchResult = await target.search(params);
 
       if (searchResult.results.isNotEmpty) {
         setState(() => _isConverting = false);
@@ -196,7 +209,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showActionSheet(SearchResultItem item) {
-    final targetLabel = _shareTargetType == 'tidal' ? 'Tidal' : 'YouTube Music';
+    final targetLabel = _target?.displayName ?? 'target';
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -278,7 +291,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final targetLabel = _shareTargetType == 'tidal' ? 'Tidal' : 'YouTube Music';
+    final targetLabel = _target?.displayName ?? 'target';
 
     return Scaffold(
       appBar: AppBar(
@@ -306,7 +319,7 @@ class _HomePageState extends State<HomePage> {
             ? const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  'Share a Spotify link to this app to convert it.',
+                  'Share a music link to this app to convert it.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
@@ -324,7 +337,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Spotify Link:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Shared Link:', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(
                       _sharedText,

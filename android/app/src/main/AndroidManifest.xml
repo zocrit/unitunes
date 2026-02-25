@@ -60,6 +60,23 @@
                 android:value="tidal" />
         </activity-alias>
 
+        <activity-alias
+            android:name=".ShareToSpotify"
+            android:targetActivity=".MainActivity"
+            android:label="Spotify"
+            android:icon="@mipmap/ic_launcher"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <meta-data
+                android:name="share_target_type"
+                android:value="spotify" />
+        </activity-alias>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -15,8 +15,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        shareTargetType = if (intent?.component?.className?.contains("ShareToTidal") == true)
-            "tidal" else "youtube_music"
+        shareTargetType = resolveShareTarget(intent)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "getShareTargetType") {
@@ -41,8 +40,16 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        shareTargetType = if (intent.component?.className?.contains("ShareToTidal") == true)
-            "tidal" else "youtube_music"
+        shareTargetType = resolveShareTarget(intent)
         eventSink?.success(shareTargetType)
+    }
+
+    private fun resolveShareTarget(intent: Intent?): String {
+        val className = intent?.component?.className ?: return "youtube_music"
+        return when {
+            className.contains("ShareToSpotify") -> "spotify"
+            className.contains("ShareToTidal") -> "tidal"
+            else -> "youtube_music"
+        }
     }
 }

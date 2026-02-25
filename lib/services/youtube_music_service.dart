@@ -2,10 +2,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/search_models.dart';
+import 'music_service.dart';
 
-class YoutubeMusicService {
+class YoutubeMusicService implements MusicService {
   static const _searchUrl = 'https://music.youtube.com/youtubei/v1/search';
   static const _apiKey = 'REDACTED';
+
+  static final _watchPattern = RegExp(r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)');
+  static final _browsePattern = RegExp(r'music\.youtube\.com/browse/([a-zA-Z0-9_-]+)');
+  static final _channelPattern = RegExp(r'music\.youtube\.com/channel/([a-zA-Z0-9_-]+)');
 
   final String _clientVersion;
 
@@ -25,6 +30,41 @@ class YoutubeMusicService {
     ContentType.song: 'EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D',
   };
 
+  @override
+  String get id => 'youtube_music';
+
+  @override
+  String get displayName => 'YouTube Music';
+
+  @override
+  bool detect(String text) {
+    return _watchPattern.hasMatch(text) ||
+        _browsePattern.hasMatch(text) ||
+        _channelPattern.hasMatch(text);
+  }
+
+  @override
+  Future<SearchParams?> parse(String text) async {
+    ContentType type;
+    if (_watchPattern.hasMatch(text)) {
+      type = ContentType.song;
+    } else if (_browsePattern.hasMatch(text)) {
+      type = ContentType.album;
+    } else if (_channelPattern.hasMatch(text)) {
+      type = ContentType.artist;
+    } else {
+      return null;
+    }
+
+    try {
+      return await scrapeOgMeta(text, type);
+    } catch (e) {
+      debugPrint('YT Music parse failed: $e');
+      return null;
+    }
+  }
+
+  @override
   Future<SearchResult> search(SearchParams params) async {
     try {
       final response = await http.post(

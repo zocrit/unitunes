@@ -7,6 +7,6 @@ void main() {
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('UniTunes'), findsOneWidget);
-    expect(find.text('Share a Spotify link to this app to convert it.'), findsOneWidget);
+    expect(find.text('Share a music link to this app to convert it.'), findsOneWidget);
   });
 }
