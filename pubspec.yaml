@@ -1,5 +1,5 @@
 name: unitunes
-description: "Spotify link converter for YT Music / Tidal"
+description: "Music link converter between Spotify, YouTube Music, and Tidal"
 publish_to: 'none'
 
 version: 0.1.0+1

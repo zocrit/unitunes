@@ -142,6 +142,8 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    setState(() { _result = null; _errorMsg = ''; });
+
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
       setState(() { _errorMsg = 'Unsupported link'; });
@@ -159,11 +161,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    setState(() {
-      _isConverting = true;
-      _result = null;
-      _errorMsg = '';
-    });
+    setState(() { _isConverting = true; });
 
     try {
       final params = await source.parse(text);
