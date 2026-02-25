@@ -3,8 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   final String defaultAction;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
-  const SettingsPage({super.key, required this.defaultAction});
+  const SettingsPage({
+    super.key,
+    required this.defaultAction,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -12,20 +19,76 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   late String _selected;
+  late ThemeMode _themeMode;
 
   @override
   void initState() {
     super.initState();
     _selected = widget.defaultAction;
+    _themeMode = widget.themeMode;
   }
 
-  Future<void> _onChanged(String? value) async {
-    if (value == null) return;
-    setState(() => _selected = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('default_action', value);
-    if (mounted) {
-      Navigator.pop(context, value);
+  String get _themeModeLabel => switch (_themeMode) {
+    ThemeMode.system => 'System default',
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+  };
+
+  Future<void> _showThemeDialog() async {
+    final result = await showDialog<ThemeMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Theme'),
+        children: [
+          for (final (mode, label) in [
+            (ThemeMode.system, 'System default'),
+            (ThemeMode.light, 'Light'),
+            (ThemeMode.dark, 'Dark'),
+          ])
+            RadioListTile<ThemeMode>(
+              title: Text(label),
+              value: mode,
+              groupValue: _themeMode,
+              onChanged: (v) => Navigator.pop(ctx, v),
+            ),
+        ],
+      ),
+    );
+    if (result != null) {
+      setState(() => _themeMode = result);
+      widget.onThemeModeChanged(result);
+    }
+  }
+
+  static const _actionLabels = {
+    'ask': 'Always ask',
+    'copy': 'Copy to clipboard',
+    'open': 'Open link directly',
+    'show': 'Show details',
+  };
+
+  String get _actionLabel => _actionLabels[_selected] ?? _selected;
+
+  Future<void> _showActionDialog() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Default action'),
+        children: [
+          for (final entry in _actionLabels.entries)
+            RadioListTile<String>(
+              title: Text(entry.value),
+              value: entry.key,
+              groupValue: _selected,
+              onChanged: (v) => Navigator.pop(ctx, v),
+            ),
+        ],
+      ),
+    );
+    if (result != null) {
+      setState(() => _selected = result);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('default_action', result);
     }
   }
 
@@ -33,41 +96,21 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Settings'),
       ),
       body: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Default action after conversion',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+          ListTile(
+            title: const Text('Theme'),
+            subtitle: Text(_themeModeLabel),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showThemeDialog,
           ),
-          RadioListTile<String>(
-            title: const Text('Always ask'),
-            value: 'ask',
-            groupValue: _selected,
-            onChanged: _onChanged,
-          ),
-          RadioListTile<String>(
-            title: const Text('Copy link to clipboard'),
-            value: 'copy',
-            groupValue: _selected,
-            onChanged: _onChanged,
-          ),
-          RadioListTile<String>(
-            title: const Text('Open in app'),
-            value: 'open',
-            groupValue: _selected,
-            onChanged: _onChanged,
-          ),
-          RadioListTile<String>(
-            title: const Text('Show details'),
-            value: 'show',
-            groupValue: _selected,
-            onChanged: _onChanged,
+          ListTile(
+            title: const Text('Default action'),
+            subtitle: Text(_actionLabel),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showActionDialog,
           ),
         ],
       ),

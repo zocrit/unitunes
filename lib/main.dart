@@ -19,8 +19,46 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemeMode();
+  }
+
+  Future<void> _loadThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString('theme_mode');
+    if (value != null) {
+      setState(() {
+        _themeMode = switch (value) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          _ => ThemeMode.system,
+        };
+      });
+    }
+  }
+
+  void _setThemeMode(ThemeMode mode) {
+    setState(() => _themeMode = mode);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('theme_mode', switch (mode) {
+        ThemeMode.light => 'light',
+        ThemeMode.dark => 'dark',
+        ThemeMode.system => 'system',
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,14 +66,33 @@ class MyApp extends StatelessWidget {
       title: 'UniTunes',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: const HomePage(),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: _themeMode,
+      home: HomePage(
+        themeMode: _themeMode,
+        onThemeModeChanged: _setThemeMode,
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
+
+  const HomePage({
+    super.key,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -315,10 +372,10 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final targetLabel = _target?.displayName ?? 'target';
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('UniTunes'),
         actions: [
           IconButton(
@@ -338,27 +395,32 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
-              final result = await Navigator.push<String>(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => SettingsPage(defaultAction: _defaultAction),
+                  builder: (_) => SettingsPage(
+                    defaultAction: _defaultAction,
+                    themeMode: widget.themeMode,
+                    onThemeModeChanged: widget.onThemeModeChanged,
+                  ),
                 ),
               );
-              if (result != null) {
-                setState(() => _defaultAction = result);
-              }
+              final prefs = await SharedPreferences.getInstance();
+              setState(() {
+                _defaultAction = prefs.getString('default_action') ?? 'ask';
+              });
             },
           ),
         ],
       ),
       body: Center(
         child: _sharedText.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32),
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
                   'Share a music link to this app to convert it.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
                 ),
               )
             : Padding(
@@ -368,9 +430,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       'Target: $targetLabel',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple,
+                        color: colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -379,7 +441,7 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       _sharedText,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.blue),
+                      style: TextStyle(color: colorScheme.primary),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -399,7 +461,7 @@ class _HomePageState extends State<HomePage> {
                       SelectableText(
                         _result!.url,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.green, fontSize: 13),
+                        style: TextStyle(color: colorScheme.tertiary, fontSize: 13),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
@@ -411,7 +473,7 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         _errorMsg,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                        style: TextStyle(color: colorScheme.error, fontSize: 14),
                       ),
                   ],
                 ),
