@@ -1,6 +1,10 @@
 package io.github.zocrit.unitunes
 
 import android.content.Intent
+import androidx.core.app.Person
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -15,6 +19,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        publishSharingShortcuts()
         shareTargetType = resolveShareTarget(intent)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -44,8 +49,41 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
     }
 
+    private fun publishSharingShortcuts() {
+        val categories = setOf("io.github.zocrit.unitunes.category.MUSIC_SHARE")
+        val icon = IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+
+        data class Target(val id: String, val labelRes: Int)
+
+        val targets = listOf(
+            Target("youtube_music", R.string.share_youtube_music),
+            Target("tidal", R.string.share_tidal),
+            Target("spotify", R.string.share_spotify),
+        )
+
+        val shortcuts = targets.map { target ->
+            val person = Person.Builder()
+                .setName(getString(target.labelRes))
+                .setBot(true)
+                .build()
+            ShortcutInfoCompat.Builder(this, target.id)
+                .setShortLabel(getString(target.labelRes))
+                .setIcon(icon)
+                .setIntent(Intent(Intent.ACTION_SEND).apply { type = "text/plain" })
+                .setLongLived(true)
+                .setCategories(categories)
+                .setPerson(person)
+                .build()
+        }
+
+        ShortcutManagerCompat.setDynamicShortcuts(this, shortcuts)
+    }
+
     private fun resolveShareTarget(intent: Intent?): String {
-        val className = intent?.component?.className ?: return "youtube_music"
+        if (intent == null) return "youtube_music"
+        val shortcutId = intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID)
+        if (shortcutId != null) return shortcutId
+        val className = intent.component?.className ?: return "youtube_music"
         return when {
             className.contains("ShareToSpotify") -> "spotify"
             className.contains("ShareToTidal") -> "tidal"

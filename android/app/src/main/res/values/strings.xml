@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_youtube_music">YouTube Music</string>
+    <string name="share_tidal">Tidal</string>
+    <string name="share_spotify">Spotify</string>
+</resources>

@@ -1,0 +1,6 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="io.github.zocrit.unitunes.MainActivity">
+        <data android:mimeType="text/plain" />
+        <category android:name="io.github.zocrit.unitunes.category.MUSIC_SHARE" />
+    </share-target>
+</shortcuts>
