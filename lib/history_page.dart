@@ -4,12 +4,36 @@ import 'services/history_service.dart';
 import 'services/music_service.dart';
 import 'utils.dart';
 
-void showEntryActionSheet(
+void showBrowseActionSheet(
   BuildContext context,
   HistoryEntry entry,
   List<MusicService> services,
 ) {
-  final targetLabel = services.displayNameFor(entry.targetId);
+  showEntryActionSheet(
+    context,
+    title: entry.title,
+    targetLabel: services.displayNameFor(entry.targetId),
+    onCopy: () => copyAndNotify(context, entry.targetUrl),
+    onShare: () => shareLink(entry.targetUrl),
+    onOpen: () => openLink(entry.targetUrl),
+    onShowDetails: () => Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EntryDetailPage(entry: entry, services: services),
+      ),
+    ),
+  );
+}
+
+void showEntryActionSheet(
+  BuildContext context, {
+  required String title,
+  required String targetLabel,
+  required VoidCallback onCopy,
+  required VoidCallback onShare,
+  required VoidCallback onOpen,
+  required VoidCallback onShowDetails,
+}) {
   showModalBottomSheet(
     context: context,
     builder:
@@ -20,7 +44,7 @@ void showEntryActionSheet(
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  entry.title,
+                  title,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -33,7 +57,15 @@ void showEntryActionSheet(
                 title: const Text('Copy link'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  copyAndNotify(context, entry.targetUrl);
+                  onCopy();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share link'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onShare();
                 },
               ),
               ListTile(
@@ -41,7 +73,7 @@ void showEntryActionSheet(
                 title: Text('Open in $targetLabel'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  openLink(entry.targetUrl);
+                  onOpen();
                 },
               ),
               ListTile(
@@ -49,14 +81,7 @@ void showEntryActionSheet(
                 title: const Text('Show details'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (_) =>
-                              EntryDetailPage(entry: entry, services: services),
-                    ),
-                  );
+                  onShowDetails();
                 },
               ),
             ],
@@ -97,7 +122,7 @@ class HistoryTile extends StatelessWidget {
                             entry.imageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder:
-                                (_, __, ___) =>
+                                (_, _, _) =>
                                     const Center(child: Icon(Icons.music_note)),
                           ),
                         )
@@ -181,7 +206,14 @@ class ConversionDetailContent extends StatelessWidget {
                       width: 200,
                       height: 200,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder:
+                          (_, _, _) => const SizedBox(
+                            width: 200,
+                            height: 200,
+                            child: Center(
+                              child: Icon(Icons.music_note, size: 48),
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -355,10 +387,8 @@ class _HistoryPageState extends State<HistoryPage> {
                     entry: entry,
                     targetName: widget.services.displayNameFor(entry.targetId),
                     onTap:
-                        () => showEntryActionSheet(
-                          context,
-                          entry,
-                          widget.services,
+                        () => showBrowseActionSheet(
+                          context, entry, widget.services,
                         ),
                   );
                 },

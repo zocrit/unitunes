@@ -16,7 +16,7 @@ class HistoryService {
     final list = jsonDecode(raw) as List;
     return [
       for (final item in list.cast<Map<String, dynamic>>())
-        if (_tryParse(item) case final entry?) entry,
+        ?_tryParse(item),
     ];
   }
 

@@ -158,7 +158,8 @@ class YoutubeMusicService implements MusicService {
 
       if (url == null || title == null) return null;
       return SearchResultItem(url: url, title: title);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to parse YT Music item: $e');
       return null;
     }
   }

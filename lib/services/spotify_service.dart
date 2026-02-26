@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
 import '../models/search_models.dart';
@@ -70,7 +71,9 @@ class SpotifyService implements MusicService {
       try {
         final result = await _apiSearch(params);
         if (result != null) return result;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Spotify API search failed: $e');
+      }
     }
 
     final encoded = Uri.encodeComponent(params.query);
@@ -130,11 +133,12 @@ class SpotifyService implements MusicService {
 
   Future<SearchParams?> _scrape(String url, String urlType) async {
     try {
-      final fullUrl = url.startsWith('http') ? url : 'https://$url';
+      final fullUrl = normalizeUrl(url);
       final response = await http.get(Uri.parse(fullUrl));
       if (response.statusCode != 200) return null;
       return _parseJsonLd(response.body, urlType);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Spotify scrape failed: $e');
       return null;
     }
   }
@@ -175,7 +179,8 @@ class SpotifyService implements MusicService {
         ),
         _ => null,
       };
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to parse Spotify JSON-LD: $e');
       return null;
     }
   }
@@ -229,7 +234,8 @@ class SpotifyService implements MusicService {
         default:
           return null;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Spotify API lookup failed: $e');
       return null;
     }
   }
@@ -240,7 +246,8 @@ class SpotifyService implements MusicService {
         ..followRedirects = false;
       final response = await request.send();
       return response.headers['location'];
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to resolve Spotify short link: $e');
       return null;
     }
   }

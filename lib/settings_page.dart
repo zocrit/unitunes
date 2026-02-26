@@ -31,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   static const _actionLabels = {
     'ask': 'Always ask',
     'copy': 'Copy to clipboard',
+    'share': 'Share with other apps',
     'open': 'Open link directly',
     'show': 'Show details',
   };
@@ -51,13 +52,20 @@ class _SettingsPageState extends State<SettingsPage> {
           (ctx) => SimpleDialog(
             title: const Text('Theme'),
             children: [
-              for (final entry in _themeLabels.entries)
-                RadioListTile<ThemeMode>(
-                  title: Text(entry.value),
-                  value: entry.key,
-                  groupValue: _themeMode,
-                  onChanged: (v) => Navigator.pop(ctx, v),
+              RadioGroup<ThemeMode>(
+                groupValue: _themeMode,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final entry in _themeLabels.entries)
+                      RadioListTile<ThemeMode>(
+                        title: Text(entry.value),
+                        value: entry.key,
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
     );
@@ -76,13 +84,20 @@ class _SettingsPageState extends State<SettingsPage> {
           (ctx) => SimpleDialog(
             title: const Text('Default action'),
             children: [
-              for (final entry in _actionLabels.entries)
-                RadioListTile<String>(
-                  title: Text(entry.value),
-                  value: entry.key,
-                  groupValue: _selected,
-                  onChanged: (v) => Navigator.pop(ctx, v),
+              RadioGroup<String>(
+                groupValue: _selected,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final entry in _actionLabels.entries)
+                      RadioListTile<String>(
+                        title: Text(entry.value),
+                        value: entry.key,
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
     );

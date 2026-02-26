@@ -1,6 +1,11 @@
 import 'search_models.dart';
 
 class HistoryEntry {
+  static const _monthAbbr = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   final String title;
   final String sourceUrl;
   final String targetUrl;
@@ -41,7 +46,7 @@ class HistoryEntry {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    return '${timestamp.day} ${_monthAbbr[timestamp.month - 1]} ${timestamp.year}';
   }
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(

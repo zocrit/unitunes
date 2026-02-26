@@ -15,6 +15,8 @@ extension MusicServiceLookup on List<MusicService> {
       where((s) => s.id == id).firstOrNull?.displayName ?? id;
 }
 
+String normalizeUrl(String url) => url.startsWith('http') ? url : 'https://$url';
+
 final _ogTitle = RegExp(r'<meta\s+property="og:title"\s+content="([^"]*)"');
 final _ogDesc = RegExp(
   r'<meta\s+property="og:description"\s+content="([^"]*)"',
@@ -22,7 +24,7 @@ final _ogDesc = RegExp(
 final _ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"');
 
 Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
-  final fullUrl = url.startsWith('http') ? url : 'https://$url';
+  final fullUrl = normalizeUrl(url);
   final response = await http.get(
     Uri.parse(fullUrl),
     headers: {
