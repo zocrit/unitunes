@@ -197,6 +197,7 @@ class _HomePageState extends State<HomePage> {
 
     _servicesReady.complete();
     final historyService = HistoryService(prefs);
+    if (!mounted) return;
     setState(() {
       _historyService = historyService;
       _recentEntries = historyService.load();
@@ -231,19 +232,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (source.id == target.id) {
-      if (_launchedFromShare) {
-        Fluttertoast.showToast(
-          msg: 'This link is already from ${source.displayName}',
-        );
-        SystemNavigator.pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('This link is already from ${source.displayName}'),
-          ),
-        );
-        setState(() => _conversion = const Idle());
-      }
+      _failConversion('This link is already from ${source.displayName}');
       return;
     }
 
@@ -258,6 +247,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final params = await source.parse(text);
+      if (!mounted) return;
       if (params == null) {
         _failConversion('Could not parse ${source.displayName} link');
         return;
@@ -266,6 +256,7 @@ class _HomePageState extends State<HomePage> {
       setState(() => _conversion = Converting(link: text, imageUrl: params.imageUrl));
 
       final searchResult = await target.search(params);
+      if (!mounted) return;
 
       if (searchResult.results.isNotEmpty) {
         final item = searchResult.results.first;
@@ -286,6 +277,7 @@ class _HomePageState extends State<HomePage> {
         _failConversion('No results found');
       }
     } catch (e) {
+      if (!mounted) return;
       _failConversion('Conversion failed');
     }
   }
