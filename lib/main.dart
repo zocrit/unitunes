@@ -96,8 +96,19 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  ConversionState _conversion = const Idle();
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+  ConversionState __conversion = const Idle();
+  String? _lastSourceId;
+  ConversionState get _conversion => __conversion;
+  set _conversion(ConversionState value) {
+    __conversion = value;
+    if (value is Converting) {
+      if (value.sourceId != null) _lastSourceId = value.sourceId;
+      if (!_pulseController.isAnimating) _pulseController.repeat(reverse: true);
+    } else {
+      _pulseController.reset();
+    }
+  }
   String _shareTargetType = 'youtube_music';
   String _defaultAction = 'share';
   bool _launchedFromShare = false;
@@ -111,6 +122,9 @@ class _HomePageState extends State<HomePage> {
   final _pasteController = TextEditingController();
   final _servicesReady = Completer<void>();
   String? _pendingLink;
+
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
 
   static const _targetChannel = MethodChannel(
     'io.github.zocrit.unitunes/share_target',
@@ -128,6 +142,14 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _pulseScale = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
     _listenForTargetChanges();
     _initServices();
@@ -211,6 +233,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _convertLink(String text) async {
+    _lastSourceId = null;
     if (!_servicesReady.isCompleted) {
       _pendingLink = text;
       setState(() => _conversion = Converting(link: text));
@@ -236,6 +259,8 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    setState(() => _conversion = Converting(link: text, sourceId: source.id));
+
     final cached =
         _recentEntries
             .where((e) => e.sourceUrl == text && e.targetId == target.id)
@@ -253,7 +278,7 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      setState(() => _conversion = Converting(link: text, imageUrl: params.imageUrl));
+      setState(() => _conversion = Converting(link: text, imageUrl: params.imageUrl, sourceId: source.id));
 
       final searchResult = await target.search(params);
       if (!mounted) return;
@@ -327,10 +352,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _copyAndFinish(String url) {
+  Future<void> _copyAndFinish(String url) async {
     Clipboard.setData(ClipboardData(text: url));
     if (_useMinimalOverlay) {
       Fluttertoast.showToast(msg: 'Link copied to clipboard');
+      setState(() => _conversion = const Idle());
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Link copied to clipboard')),
@@ -407,6 +435,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _intentSub.cancel();
     _targetEventSub?.cancel();
     _pasteController.dispose();
@@ -415,15 +444,85 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildOverlay() {
     final converting = _conversion is Converting;
+    final sourceColor = _lastSourceId != null ? _services.colorFor(_lastSourceId!) : null;
+    final targetColor = _services.colorFor(_shareTargetType);
+
     return SizedBox.expand(
       child: ColoredBox(
         color: Colors.black54,
         child: Align(
           alignment: const Alignment(0, -0.5),
-          child: converting
-              ? const CircularProgressIndicator(color: Colors.white)
-              : const Icon(Icons.check_circle_outline, color: Colors.white, size: 48),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_lastSourceId != null) ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _brandDot(sourceColor),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(Icons.arrow_forward, color: Colors.white70, size: 16),
+                    ),
+                    _brandDot(targetColor),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: converting
+                    ? ScaleTransition(
+                        key: const ValueKey('note'),
+                        scale: _pulseScale,
+                        child: const Icon(Icons.music_note, color: Colors.white, size: 48),
+                      )
+                    : _gradientCheck(sourceColor, targetColor),
+              ),
+              const SizedBox(height: 12),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  converting ? 'Converting...' : 'Done!',
+                  key: ValueKey(converting),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.normal,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _gradientCheck(Color? sourceColor, Color? targetColor) {
+    const icon = Icon(Icons.check_circle_outline, color: Colors.white, size: 48);
+    if (sourceColor == null || targetColor == null) {
+      return const KeyedSubtree(key: ValueKey('check'), child: icon);
+    }
+    return ShaderMask(
+      key: const ValueKey('check'),
+      shaderCallback: (bounds) => LinearGradient(
+        colors: [sourceColor, targetColor],
+      ).createShader(bounds),
+      child: icon,
+    );
+  }
+
+  Widget _brandDot(Color? color) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: color ?? Colors.grey,
+        shape: BoxShape.circle,
       ),
     );
   }

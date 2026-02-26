@@ -11,7 +11,8 @@ class Idle extends ConversionState {
 class Converting extends ConversionState {
   final String link;
   final String? imageUrl;
-  const Converting({required this.link, this.imageUrl});
+  final String? sourceId;
+  const Converting({required this.link, this.imageUrl, this.sourceId});
 }
 
 class Converted extends ConversionState {

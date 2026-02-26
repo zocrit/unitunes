@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:http/http.dart' as http;
 import '../models/search_models.dart';
 
 abstract class MusicService {
   String get id;
   String get displayName;
+  Color get brandColor;
 
   bool detect(String text);
   Future<SearchParams?> parse(String text);
@@ -13,6 +15,9 @@ abstract class MusicService {
 extension MusicServiceLookup on List<MusicService> {
   String displayNameFor(String id) =>
       where((s) => s.id == id).firstOrNull?.displayName ?? id;
+
+  Color? colorFor(String id) =>
+      where((s) => s.id == id).firstOrNull?.brandColor;
 }
 
 String normalizeUrl(String url) => url.startsWith('http') ? url : 'https://$url';

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
@@ -35,6 +36,9 @@ class SpotifyService implements MusicService {
 
   @override
   String get displayName => 'Spotify';
+
+  @override
+  Color get brandColor => const Color(0xFF1DB954);
 
   @override
   bool detect(String text) {

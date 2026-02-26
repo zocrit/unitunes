@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/search_models.dart';
@@ -29,6 +30,9 @@ class TidalService implements MusicService {
 
   @override
   String get displayName => 'Tidal';
+
+  @override
+  Color get brandColor => const Color(0xFFFFFFFF);
 
   @override
   bool detect(String text) {

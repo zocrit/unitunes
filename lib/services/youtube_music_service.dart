@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/search_models.dart';
@@ -42,6 +43,9 @@ class YoutubeMusicService implements MusicService {
 
   @override
   String get displayName => 'YouTube Music';
+
+  @override
+  Color get brandColor => const Color(0xFFFF0000);
 
   @override
   bool detect(String text) {
