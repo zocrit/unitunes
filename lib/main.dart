@@ -99,7 +99,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   ConversionState _conversion = const Idle();
   String _shareTargetType = 'youtube_music';
-  String _defaultAction = 'ask';
+  String _defaultAction = 'share';
   bool _launchedFromShare = false;
 
   late StreamSubscription _intentSub;
@@ -164,7 +164,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _initServices() async {
     final prefs = await SharedPreferences.getInstance();
-    _defaultAction = prefs.getString(kDefaultActionKey) ?? 'ask';
+    _defaultAction = prefs.getString(kDefaultActionKey) ?? 'share';
     _shareTargetType = prefs.getString(kDefaultTargetKey) ?? _shareTargetType;
     await _fetchShareTarget();
 

@@ -31,7 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   static const _actionLabels = {
     'ask': 'Always ask',
     'copy': 'Copy to clipboard',
-    'share': 'Share with other apps',
+    'share': 'Reshare',
     'open': 'Open link directly',
     'show': 'Show details',
   };
