@@ -122,6 +122,9 @@ class _HomePageState extends State<HomePage> {
   MusicService? get _target =>
       _services.where((s) => s.id == _shareTargetType).firstOrNull;
 
+  bool get _useMinimalOverlay =>
+      _launchedFromShare && (_defaultAction == 'copy' || _defaultAction == 'share');
+
   @override
   void initState() {
     super.initState();
@@ -141,6 +144,7 @@ class _HomePageState extends State<HomePage> {
     // Link shared while app is running
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
       if (value.isNotEmpty) {
+        _launchedFromShare = true;
         _convertLink(value.first.path);
         ReceiveSharingIntent.instance.reset();
       }
@@ -216,13 +220,13 @@ class _HomePageState extends State<HomePage> {
 
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
-      setState(() => _conversion = const ConversionError(message: 'Unsupported link'));
+      _failConversion('Unsupported link');
       return;
     }
 
     final target = _target;
     if (target == null) {
-      setState(() => _conversion = const ConversionError(message: 'Unknown target service'));
+      _failConversion('Unknown target service');
       return;
     }
 
@@ -255,9 +259,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final params = await source.parse(text);
       if (params == null) {
-        setState(() => _conversion = ConversionError(
-          message: 'Could not parse ${source.displayName} link',
-        ));
+        _failConversion('Could not parse ${source.displayName} link');
         return;
       }
 
@@ -281,10 +283,10 @@ class _HomePageState extends State<HomePage> {
         await _historyService?.add(entry);
         _handleResult(entry);
       } else {
-        _setError('No results found');
+        _failConversion('No results found');
       }
     } catch (e) {
-      _setError('Conversion failed');
+      _failConversion('Conversion failed');
     }
   }
 
@@ -294,6 +296,15 @@ class _HomePageState extends State<HomePage> {
       _ => null,
     };
     setState(() => _conversion = ConversionError(message: message, imageUrl: img));
+  }
+
+  void _failConversion(String message) {
+    if (_useMinimalOverlay) {
+      Fluttertoast.showToast(msg: message);
+      _exitOrReset();
+    } else {
+      _setError(message);
+    }
   }
 
   void _handleResult(HistoryEntry entry) {
@@ -325,11 +336,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _copyAndFinish(String url) {
-    if (mounted) copyAndNotify(context, url);
+    Clipboard.setData(ClipboardData(text: url));
+    if (_useMinimalOverlay) {
+      Fluttertoast.showToast(msg: 'Link copied to clipboard');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link copied to clipboard')),
+      );
+    }
     _exitOrReset();
   }
 
   Future<void> _shareAndFinish(String url) async {
+    if (_useMinimalOverlay) setState(() => _conversion = const Idle());
     await shareLink(url);
     _exitOrReset();
   }
@@ -400,8 +419,30 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  Widget _buildOverlay() {
+    final converting = _conversion is Converting;
+    return SizedBox.expand(
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Align(
+          alignment: const Alignment(0, -0.5),
+          child: converting
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Icon(Icons.check_circle_outline, color: Colors.white, size: 48),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_useMinimalOverlay) {
+      return PopScope(
+        canPop: false,
+        child: _buildOverlay(),
+      );
+    }
+
     final colorScheme = Theme.of(context).colorScheme;
     final inputRadius = BorderRadius.circular(12);
 
