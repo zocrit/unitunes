@@ -359,7 +359,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _exitOrReset() {
-    if (_launchedFromShare) {
+    final shouldExit = _launchedFromShare;
+    _launchedFromShare = false;
+    if (shouldExit) {
       SystemNavigator.pop();
     } else {
       setState(() {
