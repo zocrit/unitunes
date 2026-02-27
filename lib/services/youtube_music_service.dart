@@ -56,19 +56,23 @@ class YoutubeMusicService implements MusicService {
 
   @override
   Future<SearchParams?> parse(String text) async {
-    ContentType type;
-    if (_watchPattern.hasMatch(text)) {
+    final ContentType type;
+    final String url;
+    if (_watchPattern.firstMatch(text) case final m?) {
       type = ContentType.song;
-    } else if (_browsePattern.hasMatch(text)) {
+      url = m.group(0)!;
+    } else if (_browsePattern.firstMatch(text) case final m?) {
       type = ContentType.album;
-    } else if (_channelPattern.hasMatch(text)) {
+      url = m.group(0)!;
+    } else if (_channelPattern.firstMatch(text) case final m?) {
       type = ContentType.artist;
+      url = m.group(0)!;
     } else {
       return null;
     }
 
     try {
-      return await scrapeOgMeta(text, type);
+      return await scrapeOgMeta(url, type);
     } catch (e) {
       debugPrint('YT Music parse failed: $e');
       return null;

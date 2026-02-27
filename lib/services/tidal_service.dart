@@ -8,7 +8,7 @@ import 'music_service.dart';
 
 class TidalService implements MusicService {
   static final _tidalUrlPattern = RegExp(
-    r'(?:listen\.tidal\.com|tidal\.com/browse)/(track|album|artist)/([a-zA-Z0-9-]+)',
+    r'(?:listen\.tidal\.com|tidal\.com(?:/browse)?)/(track|album|artist)/([a-zA-Z0-9-]+)(?:/\w+)?',
   );
 
   static const _apiBase = 'https://api.tidal.com/v1';
@@ -53,7 +53,7 @@ class TidalService implements MusicService {
     if (type == null) return null;
 
     try {
-      return await scrapeOgMeta(text, type);
+      return await scrapeOgMeta(match.group(0)!, type);
     } catch (e) {
       debugPrint('Tidal parse failed: $e');
       return null;

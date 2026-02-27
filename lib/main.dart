@@ -159,19 +159,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _initServices();
 
     // Link shared while app was closed
-    ReceiveSharingIntent.instance.getInitialMedia().then((value) {
+    ReceiveSharingIntent.instance.getInitialMedia().then((value) async {
       if (value.isNotEmpty) {
         _launchedFromShare = true;
-        _convertLink(value.first.path);
+        _convertLink(await _extractLink(value));
         ReceiveSharingIntent.instance.reset();
       }
     }, onError: (_) {});
 
     // Link shared while app is running
-    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
       if (value.isNotEmpty) {
         _launchedFromShare = true;
-        _convertLink(value.first.path);
+        _convertLink(await _extractLink(value));
         ReceiveSharingIntent.instance.reset();
       }
     });
@@ -234,6 +234,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       _pendingLink = null;
       _convertLink(link);
     }
+  }
+
+  static final _urlPattern = RegExp(r'https?://\S+');
+
+  Future<String> _extractLink(List<SharedMediaFile> items) async {
+    // Prefer items whose path looks like a URL
+    for (final item in items) {
+      if (_urlPattern.hasMatch(item.path)) return item.path;
+    }
+    // Check message fields for an embedded URL
+    for (final item in items) {
+      final msg = item.message;
+      if (msg != null) {
+        final match = _urlPattern.firstMatch(msg);
+        if (match != null) return match.group(0)!;
+      }
+    }
+    // Some apps (e.g. Tidal) put the URL in EXTRA_TEXT but the plugin
+    // discards it when EXTRA_STREAM is also present. Read it directly.
+    try {
+      final extraText = await _targetChannel.invokeMethod<String>('getShareText');
+      if (extraText != null) {
+        final match = _urlPattern.firstMatch(extraText);
+        if (match != null) return match.group(0)!;
+        return extraText;
+      }
+    } catch (_) {}
+    return items.first.path;
   }
 
   Future<void> _convertLink(String text) async {
@@ -474,7 +502,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             )
                           : const SizedBox(key: ValueKey('spacer'), width: 32, height: 20),
                     ),
-                    _brandDot(targetColor),
+                    _eye(targetColor, open: true),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -531,17 +559,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       decoration: BoxDecoration(
         color: color ?? Colors.grey,
         borderRadius: BorderRadius.circular(open ? 10 : 2),
-      ),
-    );
-  }
-
-  Widget _brandDot(Color? color) {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        color: color ?? Colors.grey,
-        shape: BoxShape.circle,
       ),
     );
   }

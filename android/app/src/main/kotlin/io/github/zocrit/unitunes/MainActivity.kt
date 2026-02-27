@@ -23,10 +23,10 @@ class MainActivity : FlutterActivity() {
         shareTargetType = resolveShareTarget(intent)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "getShareTargetType") {
-                result.success(shareTargetType)
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "getShareTargetType" -> result.success(shareTargetType)
+                "getShareText" -> result.success(intent?.getStringExtra(Intent.EXTRA_TEXT))
+                else -> result.notImplemented()
             }
         }
 
