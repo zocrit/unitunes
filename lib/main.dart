@@ -459,10 +459,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _brandDot(sourceColor),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Icon(Icons.arrow_forward, color: Colors.white70, size: 16),
+                    _eye(sourceColor, open: converting),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: converting
+                          ? const Padding(
+                              key: ValueKey('arrow'),
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Icon(Icons.arrow_forward, color: Colors.white70, size: 16),
+                            )
+                          : const SizedBox(key: ValueKey('spacer'), width: 32, height: 16),
                     ),
                     _brandDot(targetColor),
                   ],
@@ -479,21 +485,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         scale: _pulseScale,
                         child: const Icon(Icons.music_note, color: Colors.white, size: 48),
                       )
-                    : _gradientCheck(sourceColor, targetColor),
+                    : _gradientNote(sourceColor, targetColor),
               ),
               const SizedBox(height: 12),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: Text(
-                  converting ? 'Converting...' : 'Done!',
-                  key: ValueKey(converting),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.normal,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
+                child: converting
+                    ? const Text(
+                        'Converting...',
+                        key: ValueKey('status-converting'),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                          decoration: TextDecoration.none,
+                        ),
+                      )
+                    : const _SmileText(key: ValueKey('status-done')),
               ),
             ],
           ),
@@ -502,17 +510,30 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _gradientCheck(Color? sourceColor, Color? targetColor) {
-    const icon = Icon(Icons.check_circle_outline, color: Colors.white, size: 48);
+  Widget _gradientNote(Color? sourceColor, Color? targetColor) {
+    const icon = Icon(Icons.music_note, color: Colors.white, size: 48);
     if (sourceColor == null || targetColor == null) {
-      return const KeyedSubtree(key: ValueKey('check'), child: icon);
+      return const KeyedSubtree(key: ValueKey('grad-note'), child: icon);
     }
     return ShaderMask(
-      key: const ValueKey('check'),
+      key: const ValueKey('grad-note'),
       shaderCallback: (bounds) => LinearGradient(
         colors: [sourceColor, targetColor],
       ).createShader(bounds),
       child: icon,
+    );
+  }
+
+  Widget _eye(Color? color, {required bool open}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: 16,
+      height: open ? 16 : 3,
+      decoration: BoxDecoration(
+        color: color ?? Colors.grey,
+        borderRadius: BorderRadius.circular(open ? 8 : 1.5),
+      ),
     );
   }
 
@@ -795,4 +816,63 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       ),
     );
   }
+}
+
+class _SmileText extends StatelessWidget {
+  const _SmileText({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(140, 36),
+      painter: const _SmilePainter(),
+    );
+  }
+}
+
+class _SmilePainter extends CustomPainter {
+  const _SmilePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const text = 'Converted!';
+    const style = TextStyle(
+      color: Colors.white70,
+      fontSize: 14,
+      fontWeight: FontWeight.normal,
+    );
+
+    final painters = <TextPainter>[];
+    var totalWidth = 0.0;
+    for (var i = 0; i < text.length; i++) {
+      final tp = TextPainter(
+        text: TextSpan(text: text[i], style: style),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painters.add(tp);
+      totalWidth += tp.width;
+    }
+
+    var x = (size.width - totalWidth) / 2;
+
+    for (var i = 0; i < text.length; i++) {
+      final tp = painters[i];
+      final charCenter = x + tp.width / 2;
+      final t = (charCenter - size.width / 2) / (totalWidth / 2);
+      // Smile curve: edges higher (smaller y), center lower (larger y)
+      final y = (size.height - 14) / 2 + 6 * (1 - t * t);
+      final angle = -t * 0.15;
+
+      canvas.save();
+      canvas.translate(charCenter, y);
+      canvas.rotate(angle);
+      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+      canvas.restore();
+
+      x += tp.width;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
