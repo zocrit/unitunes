@@ -99,10 +99,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   ConversionState __conversion = const Idle();
   String? _lastSourceId;
+  int _conversionCount = 0;
   ConversionState get _conversion => __conversion;
   set _conversion(ConversionState value) {
     __conversion = value;
     if (value is Converting) {
+      _conversionCount++;
       if (value.sourceId != null) _lastSourceId = value.sourceId;
       if (!_pulseController.isAnimating) {
         _pulseController.value = 0.0;
@@ -508,6 +510,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 const SizedBox(height: 10),
               ],
               TweenAnimationBuilder<double>(
+                key: ValueKey('blend$_conversionCount'),
                 tween: Tween(end: converting ? 0.0 : 1.0),
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOut,
@@ -530,6 +533,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
               const SizedBox(height: 4),
               TweenAnimationBuilder<double>(
+                key: ValueKey('curve$_conversionCount'),
                 tween: Tween(end: converting ? 0.0 : 1.0),
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeInOut,
