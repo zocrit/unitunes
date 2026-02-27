@@ -495,6 +495,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         'Converting...',
                         key: ValueKey('status-converting'),
                         style: TextStyle(
+                          fontFamily: 'Helvetica',
                           color: Colors.white70,
                           fontSize: 14,
                           fontWeight: FontWeight.normal,
@@ -837,6 +838,7 @@ class _SmilePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const text = 'Converted!';
     const style = TextStyle(
+      fontFamily: 'Helvetica',
       color: Colors.white70,
       fontSize: 14,
       fontWeight: FontWeight.normal,
