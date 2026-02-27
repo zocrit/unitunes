@@ -872,15 +872,15 @@ class _SmilePainter extends CustomPainter {
     }
     anchorWidth += spacing * (anchorLen - 1);
 
+    final depth = 16.0 * curve;
     var x = (size.width - anchorWidth) / 2;
 
     for (var i = 0; i < text.length; i++) {
       final tp = painters[i];
       final charCenter = x + tp.width / 2;
       final t = (charCenter - size.width / 2) / (anchorWidth / 2);
-      final depth = 16.0 * curve;
-      final y = (size.height - 14) / 2 + depth * (1 - t * t);
-      final angle = -t * 0.32 * curve;
+      final y = (size.height - 14) / 2 - depth * t * t;
+      final angle = atan(-4 * depth * t / anchorWidth);
 
       canvas.save();
       canvas.translate(charCenter, y);
