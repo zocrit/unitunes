@@ -12,7 +12,10 @@ class TidalService implements MusicService {
   );
 
   static const _apiBase = 'https://api.tidal.com/v1';
-  static const _token = 'REDACTED';
+  static const _token = String.fromEnvironment(
+    'TIDAL_TOKEN',
+    defaultValue: '',
+  );
   static final _countryCode = () {
     final parts = Platform.localeName.split('_');
     if (parts.length < 2) return 'US';
@@ -62,6 +65,11 @@ class TidalService implements MusicService {
 
   @override
   Future<SearchResult> search(SearchParams params) async {
+    if (_token.isEmpty) {
+      debugPrint('Tidal search: no key');
+      return SearchResult(results: []);
+    }
+
     final searchType = _searchTypes[params.type] ?? 'tracks';
 
     try {

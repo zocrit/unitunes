@@ -7,7 +7,10 @@ import 'music_service.dart';
 
 class YoutubeMusicService implements MusicService {
   static const _searchUrl = 'https://music.youtube.com/youtubei/v1/search';
-  static const _apiKey = 'REDACTED';
+  static const _apiKey = String.fromEnvironment(
+    'YOUTUBE_MUSIC_API_KEY',
+    defaultValue: '',
+  );
 
   static final _watchPattern = RegExp(
     r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
@@ -81,6 +84,11 @@ class YoutubeMusicService implements MusicService {
 
   @override
   Future<SearchResult> search(SearchParams params) async {
+    if (_apiKey.isEmpty) {
+      debugPrint('YT Music search: no key');
+      return SearchResult(results: []);
+    }
+
     try {
       final response = await http.post(
         Uri.parse('$_searchUrl?key=$_apiKey'),
