@@ -138,7 +138,9 @@ class SpotifyService implements MusicService {
   Future<SearchParams?> _scrape(String url, String urlType) async {
     try {
       final fullUrl = normalizeUrl(url);
-      final response = await http.get(Uri.parse(fullUrl));
+      final response = await http
+          .get(Uri.parse(fullUrl))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
       return _parseJsonLd(response.body, urlType);
     } catch (e) {
@@ -248,7 +250,9 @@ class SpotifyService implements MusicService {
     try {
       final request = http.Request('GET', Uri.parse(url))
         ..followRedirects = false;
-      final response = await request.send();
+      final response = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
       return response.headers['location'];
     } catch (e) {
       debugPrint('Failed to resolve Spotify short link: $e');

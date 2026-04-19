@@ -36,7 +36,7 @@ Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
       'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     },
-  );
+  ).timeout(const Duration(seconds: 10));
   if (response.statusCode != 200) return null;
 
   final html = response.body;

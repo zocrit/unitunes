@@ -107,7 +107,7 @@ class YoutubeMusicService implements MusicService {
           'query': params.query,
           'params': _filters[params.type],
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         throw Exception('status ${response.statusCode}');

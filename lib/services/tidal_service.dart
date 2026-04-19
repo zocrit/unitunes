@@ -81,7 +81,9 @@ class TidalService implements MusicService {
         },
       );
 
-      final response = await http.get(uri, headers: {'x-tidal-token': _token});
+      final response = await http
+          .get(uri, headers: {'x-tidal-token': _token})
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         throw Exception('status ${response.statusCode}');
