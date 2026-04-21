@@ -128,6 +128,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final _pasteController = TextEditingController();
   final _servicesReady = Completer<void>();
   String? _pendingLink;
+  String? _lastSharedLink;
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseScale;
@@ -160,23 +161,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _listenForTargetChanges();
     _initServices();
 
-    // Link shared while app was closed
-    ReceiveSharingIntent.instance.getInitialMedia().then((value) async {
-      if (value.isNotEmpty) {
-        _launchedFromShare = true;
-        _convertLink(await _extractLink(value));
-        ReceiveSharingIntent.instance.reset();
-      }
-    }, onError: (_) {});
-
-    // Link shared while app is running
-    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
-      if (value.isNotEmpty) {
-        _launchedFromShare = true;
-        _convertLink(await _extractLink(value));
-        ReceiveSharingIntent.instance.reset();
-      }
-    });
+    ReceiveSharingIntent.instance.getInitialMedia().then(_handleSharedItems, onError: (_) {});
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(_handleSharedItems);
   }
 
   Future<void> _fetchShareTarget() async {
@@ -239,6 +225,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   static final _urlPattern = RegExp(r'https?://\S+');
+
+  Future<void> _handleSharedItems(List<SharedMediaFile> items) async {
+    if (items.isEmpty) return;
+    final link = await _extractLink(items);
+    if (link == _lastSharedLink) return;
+    _lastSharedLink = link;
+    _launchedFromShare = true;
+    await _convertLink(link);
+    _lastSharedLink = null;
+    ReceiveSharingIntent.instance.reset();
+  }
 
   Future<String> _extractLink(List<SharedMediaFile> items) async {
     // Prefer items whose path looks like a URL
