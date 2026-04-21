@@ -161,7 +161,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _listenForTargetChanges();
     _initServices();
 
-    ReceiveSharingIntent.instance.getInitialMedia().then(_handleSharedItems, onError: (_) {});
+    ReceiveSharingIntent.instance.getInitialMedia().then(_handleSharedItems, onError: (e) {
+      debugPrint('initial share failed: $e');
+      if (mounted) _setError("Couldn't read shared link");
+    });
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(_handleSharedItems);
   }
 
@@ -171,13 +174,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         'getShareTargetType',
       );
       if (result != null) setState(() => _shareTargetType = result);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('share target fetch failed: $e');
+    }
   }
 
   void _listenForTargetChanges() {
     _targetEventSub = _targetEvents.receiveBroadcastStream().listen((event) {
       if (event is String) setState(() => _shareTargetType = event);
-    }, onError: (_) {});
+    }, onError: (e) {
+      debugPrint('target event stream failed: $e');
+    });
   }
 
   Future<void> _initServices() async {
@@ -259,7 +266,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (match != null) return match.group(0)!;
         return extraText;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('extra share text failed: $e');
+    }
     return items.first.path;
   }
 
