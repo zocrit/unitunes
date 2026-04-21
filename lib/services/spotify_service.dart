@@ -248,12 +248,21 @@ class SpotifyService implements MusicService {
 
   static Future<String?> _resolveShortLink(String url) async {
     try {
-      final request = http.Request('GET', Uri.parse(url))
-        ..followRedirects = false;
-      final response = await request.send().timeout(
-        const Duration(seconds: 10),
-      );
-      return response.headers['location'];
+      var current = url;
+      for (var i = 0; i < 10; i++) {
+        final request = http.Request('GET', Uri.parse(current))
+          ..followRedirects = false;
+        final response = await request.send().timeout(
+          const Duration(seconds: 10),
+        );
+        final location = response.headers['location'];
+        if (location == null) return null;
+        final next = Uri.parse(current).resolve(location).toString();
+        if (_spotifyUrlPattern.hasMatch(next)) return next;
+        current = next;
+      }
+      debugPrint('Spotify short link: too many redirects');
+      return null;
     } catch (e) {
       debugPrint('Failed to resolve Spotify short link: $e');
       return null;
