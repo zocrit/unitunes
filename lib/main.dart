@@ -97,24 +97,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  ConversionState __conversion = const Idle();
+  ConversionState _conversion = const Idle();
   String? _lastSourceId;
   int _conversionCount = 0;
-  ConversionState get _conversion => __conversion;
-  set _conversion(ConversionState value) {
-    __conversion = value;
-    if (value is Converting) {
-      _conversionCount++;
-      if (value.sourceId != null) _lastSourceId = value.sourceId;
-      if (!_pulseController.isAnimating) {
-        _pulseController.value = 0.0;
-        _pulseController.repeat(reverse: true);
-      }
-    } else {
-      _pulseController.stop();
-      _pulseController.animateTo(0.5, duration: const Duration(milliseconds: 200));
-    }
-  }
   String _shareTargetType = 'youtube_music';
   String _defaultAction = 'share';
   bool _launchedFromShare = false;
@@ -145,6 +130,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   bool get _useMinimalOverlay =>
       _launchedFromShare && (_defaultAction == 'copy' || _defaultAction == 'share');
+
+  void _setConversion(ConversionState value) {
+    setState(() {
+      _conversion = value;
+      if (value is Converting) {
+        _conversionCount++;
+        if (value.sourceId != null) _lastSourceId = value.sourceId;
+        if (!_pulseController.isAnimating) {
+          _pulseController.value = 0.0;
+          _pulseController.repeat(reverse: true);
+        }
+      } else {
+        _pulseController.stop();
+        _pulseController.animateTo(0.5, duration: const Duration(milliseconds: 200));
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -276,11 +278,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _lastSourceId = null;
     if (!_servicesReady.isCompleted) {
       _pendingLink = text;
-      setState(() => _conversion = Converting(link: text));
+      _setConversion(Converting(link: text));
       return;
     }
 
-    setState(() => _conversion = Converting(link: text));
+    _setConversion(Converting(link: text));
 
     final source = _services.where((s) => s.detect(text)).firstOrNull;
     if (source == null) {
@@ -299,7 +301,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       return;
     }
 
-    setState(() => _conversion = Converting(link: text, sourceId: source.id));
+    _setConversion(Converting(link: text, sourceId: source.id));
 
     final cached =
         _recentEntries
@@ -318,7 +320,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         return;
       }
 
-      setState(() => _conversion = Converting(link: text, imageUrl: params.imageUrl, sourceId: source.id));
+      _setConversion(Converting(link: text, imageUrl: params.imageUrl, sourceId: source.id));
 
       final searchResult = await target.search(params);
       if (!mounted) return;
@@ -352,7 +354,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       Converting(:final imageUrl) => imageUrl,
       _ => null,
     };
-    setState(() => _conversion = ConversionError(message: message, imageUrl: img));
+    _setConversion(ConversionError(message: message, imageUrl: img));
   }
 
   void _failConversion(String message) {
@@ -373,9 +375,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       case 'open':
         _openAndFinish(entry.targetUrl);
       case 'show':
-        setState(() => _conversion = Converted(entry: entry));
+        _setConversion(Converted(entry: entry));
       default: // 'ask'
-        setState(() => _conversion = Converted(entry: entry));
+        _setConversion(Converted(entry: entry));
         _showActionSheet(entry);
     }
   }
@@ -388,7 +390,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       onCopy: () => _copyAndFinish(entry.targetUrl),
       onShare: () => _shareAndFinish(entry.targetUrl),
       onOpen: () => _openAndFinish(entry.targetUrl),
-      onShowDetails: () => setState(() => _conversion = Converted(entry: entry)),
+      onShowDetails: () => _setConversion(Converted(entry: entry)),
     );
   }
 
@@ -396,7 +398,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     Clipboard.setData(ClipboardData(text: url));
     if (_useMinimalOverlay) {
       Fluttertoast.showToast(msg: 'Link copied to clipboard');
-      setState(() => _conversion = const Idle());
+      _setConversion(const Idle());
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
     } else if (mounted) {
@@ -408,7 +410,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Future<void> _shareAndFinish(String url) async {
-    if (_useMinimalOverlay) setState(() => _conversion = const Idle());
+    if (_useMinimalOverlay) _setConversion(const Idle());
     await shareLink(url);
     _exitOrReset();
   }
@@ -424,12 +426,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (shouldExit) {
       SystemNavigator.pop();
     } else {
-      setState(() {
-        _conversion = const Idle();
-        if (_historyService != null) {
-          _recentEntries = _historyService!.load();
-        }
-      });
+      _setConversion(const Idle());
+      if (_historyService != null) {
+        setState(() => _recentEntries = _historyService!.load());
+      }
     }
   }
 

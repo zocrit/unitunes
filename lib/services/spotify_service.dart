@@ -160,10 +160,7 @@ class SpotifyService implements MusicService {
       if (name == null) return null;
 
       final description = data['description'] as String? ?? '';
-      final ogImage = RegExp(
-        r'<meta\s+property="og:image"\s+content="([^"]*)"',
-      );
-      final imageUrl = ogImage.firstMatch(html)?.group(1);
+      final imageUrl = ogImageFrom(html);
 
       return switch (urlType) {
         'track' => SearchParams(

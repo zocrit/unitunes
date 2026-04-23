@@ -28,6 +28,8 @@ final _ogDesc = RegExp(
 );
 final _ogImage = RegExp(r'<meta\s+property="og:image"\s+content="([^"]*)"');
 
+String? ogImageFrom(String html) => _ogImage.firstMatch(html)?.group(1);
+
 Future<SearchParams?> scrapeOgMeta(String url, ContentType type) async {
   final fullUrl = normalizeUrl(url);
   final response = await http.get(
