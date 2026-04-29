@@ -305,7 +305,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     final cached =
         _recentEntries
-            .where((e) => e.sourceUrl == text && e.targetId == target.id)
+            .where((e) =>
+                e.sourceUrl == text &&
+                e.sourceId == source.id &&
+                e.targetId == target.id)
             .firstOrNull;
     if (cached != null) {
       _handleResult(cached);
