@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/history_entry.dart';
 
@@ -23,7 +24,8 @@ class HistoryService {
   static HistoryEntry? _tryParse(Map<String, dynamic> json) {
     try {
       return HistoryEntry.fromJson(json);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('history entry parse failed: $e');
       return null;
     }
   }
